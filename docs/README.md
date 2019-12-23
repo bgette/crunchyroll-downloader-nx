@@ -1,6 +1,7 @@
 # Crunchyroll Downloader NX
 
 Crunchyroll Downloader NX is capable of downloading videos from the *Crunchyroll* streaming service.
+
 Fork of @seiya-dev's Crunchyroll Downloader NX
 
 ## Legal Warning
@@ -25,7 +26,7 @@ To change these paths you need to edit `yml` file in `./config/` directory.
 ### Node Modules
 
 After installing NodeJS with NPM go to directory with `package.json` file and type: `npm i`.
-* [check dependencies](https://david-dm.org/seiya-dev/crunchyroll-downloader-nx)
+* [check dependencies](https://david-dm.org/anidl/crunchyroll-downloader-nx)
 
 ## CLI Options
 
