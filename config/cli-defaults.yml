@@ -1,0 +1,15 @@
+filenameTemplate: "[{rel_group}] {title} - {ep_num} [{suffix}]"
+releaseGroup: CR
+epNumLength: 2
+fileSuffix: SIZEp
+videoQuality: 720p
+dubLanguage: jpn
+mp4mux: false
+muxSubs: false
+noCleanUp: false
+nServer: 1
+oldSubs: false
+dlSubs: all
+proxy: false
+proxy_auth: false
+proxy_ssp: false
