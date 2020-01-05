@@ -12,12 +12,12 @@ const { compile } = require('nexe');
     const acceptableBuilds = ['win64','linux64','macos64'];
     const buildType = process.argv[2];
     if(!acceptableBuilds.includes(buildType)){
-        console.error(`[ERROR] unknown build type!`)
+        console.error('[ERROR] unknown build type!');
         process.exit();
     }
     await modulesCleanup('.');
-    if(!fs.existsSync(`./_builds`)){
-        fs.mkdirSync(`./_builds`);
+    if(!fs.existsSync('./_builds')){
+        fs.mkdirSync('./_builds');
     }
     const buildFull = `${buildStr}-${buildType}`;
     const buildDir = `./_builds/${buildFull}`;
@@ -40,24 +40,24 @@ const { compile } = require('nexe');
     };
     console.log(`[Build] Build configuration: ${buildFull}`);
     await compile(buildConfig);
-    if(fs.existsSync(`./bin/ffmpeg`)){
-        fs.copySync(`./bin/ffmpeg`, `${buildDir}/bin/ffmpeg`);
+    if(fs.existsSync('./bin/ffmpeg')){
+        fs.copySync('./bin/ffmpeg', `${buildDir}/bin/ffmpeg`);
     }
-    if(fs.existsSync(`./bin/ffmpeg.exe`)){
-        fs.copySync(`./bin/ffmpeg.exe`, `${buildDir}/bin/ffmpeg.exe`);
+    if(fs.existsSync('./bin/ffmpeg.exe')){
+        fs.copySync('./bin/ffmpeg.exe', `${buildDir}/bin/ffmpeg.exe`);
     }
-    if(fs.existsSync(`./bin/mkvmerge`)){
-        fs.copySync(`./bin/mkvmerge`, `${buildDir}/bin/mkvmerge`);
+    if(fs.existsSync('./bin/mkvmerge')){
+        fs.copySync('./bin/mkvmerge', `${buildDir}/bin/mkvmerge`);
     }
-    if(fs.existsSync(`./bin/mkvmerge.exe`)){
-        fs.copySync(`./bin/mkvmerge.exe`, `${buildDir}/bin/mkvmerge.exe`);
+    if(fs.existsSync('./bin/mkvmerge.exe')){
+        fs.copySync('./bin/mkvmerge.exe', `${buildDir}/bin/mkvmerge.exe`);
     }
-    fs.copySync(`./config/bin-path.yml`, `${buildDir}/config/bin-path.yml`);
-    fs.copySync(`./config/cli-defaults.yml`, `${buildDir}/config/cli-defaults.yml`);
-    fs.copySync(`./config/dir-path.yml`, `${buildDir}/config/dir-path.yml`);
-    fs.copySync(`./cmd-here.bat`, `${buildDir}/cmd-here.bat`);
-    fs.copySync(`./docs/`, `${buildDir}/docs/`);
-    fs.copySync(`./LICENSE.md`, `${buildDir}/docs/LICENSE.md`);
+    fs.copySync('./config/bin-path.yml', `${buildDir}/config/bin-path.yml`);
+    fs.copySync('./config/cli-defaults.yml', `${buildDir}/config/cli-defaults.yml`);
+    fs.copySync('./config/dir-path.yml', `${buildDir}/config/dir-path.yml`);
+    fs.copySync('./cmd-here.bat', `${buildDir}/cmd-here.bat`);
+    fs.copySync('./docs/', `${buildDir}/docs/`);
+    fs.copySync('./LICENSE.md', `${buildDir}/docs/LICENSE.md`);
 }());
 
 function getTarget(bt){

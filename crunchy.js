@@ -7,7 +7,7 @@ const url = require('url');
 
 // package program
 const packageJson = require('./package.json');
-const ua = {headers:{'user-agent':'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:65.0) Gecko/20100101 Firefox/65.0'}};
+const ua = {headers:{'user-agent':'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:70.0) Gecko/20100101 Firefox/70.0'}};
 console.log(`\n=== Crunchyroll Downloader NX ${packageJson.version} ===\n`);
 
 // new-cfg
@@ -568,7 +568,7 @@ async function getMedia(mMeta){
     const mediaPage = await getData(`${api.media_page}${mMeta.m}`,{useProxy:true});
     if(!mediaPage.ok){ return; }
     
-    let redirs   = mediaPage.res.redirectUrls;
+    let redirs   = mediaPage.res.response.redirectUrls;
     let msgItems = mediaPage.res.body.match(/Page.messaging_box_controller.addItems\((.*)\);/);
     if(msgItems){
         msgItems =  JSON.parse(msgItems[1]);
@@ -1024,13 +1024,10 @@ async function muxStreams(){
         let mkvmux  = [];
         // defaults
         mkvmux.push('--output',`${muxFile}.mkv`);
-        mkvmux.push('--disable-track-statistics-tags','--engage','no_variable_data');
+        mkvmux.push('--no-date','--disable-track-statistics-tags','--engage','no_variable_data');
         // video
         mkvmux.push('--track-name',`0:[${argv.ftag}]`);
         mkvmux.push('--language',`1:${audioDub}`);
-        if(argv.noaudsync){
-            // mkvmux.push(`--sync`,`1:0`);
-        }
         mkvmux.push('--video-tracks','0','--audio-tracks','1');
         mkvmux.push('--no-subtitles','--no-attachments');
         mkvmux.push(`${muxFile}.ts`);
@@ -1153,7 +1150,7 @@ async function getData(durl, params){
     };
     // set binary
     if(params.binary == true){
-        options.encoding = null;
+        options.responseType = 'buffer';
     }
     // set headers
     if(params.headers){
@@ -1212,7 +1209,7 @@ async function getData(durl, params){
             console.log(`[ERROR] ${error.name} ${error.response.statusCode}: ${error.response.statusMessage}`);
         }
         else{
-            console.log(`[ERROR] ${error.name}: ${error.code}`);
+            console.log(`[ERROR] ${error.name}: ${error.code||error.message}`);
         }
         return {
             ok: false,

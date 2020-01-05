@@ -15,8 +15,7 @@ function createString(args) {
     }
     return res;
 }
-function generateKey(mediaid, size) {
-    size = size || 32;
+function generateKey(mediaid) {
     let eq1 = Math.floor(Math.sqrt(6.9) * Math.pow(2, 25));
     let eq2 = (mediaid ^ eq1) ^ (mediaid ^ eq1) >> 3 ^ (eq1 ^ mediaid) * 32;
     if (eq2 < 0) {
@@ -28,7 +27,6 @@ function generateKey(mediaid, size) {
     return res;
 }
 function doDecrypt(_id, _iv, _data) {
-    let data = Buffer.from(_data, 'base64');
     let key  = generateKey(_id);
     let iv   = Buffer.from(_iv, 'base64');
     let dec  = crypto.createDecipheriv('aes-256-cbc', key, iv);
@@ -38,7 +36,7 @@ function doDecrypt(_id, _iv, _data) {
     return zlib.unzipSync(decrypted).toString('utf8');
 }
 function decrypt(id, data) {
-    let err = data.match(/<error>(.*)<\/error>/)
+    let err = data.match(/<error>(.*)<\/error>/);
     if (err) {
         return { ok: false, data: `[ERROR] Unknown error, data:\n${err}` };
     }
@@ -72,7 +70,7 @@ function parse(meta, src){
         resx: xml[0].attribs.play_res_x,
         resy: xml[0].attribs.play_res_y,
         wrap:  xml[0].attribs.wrap_style
-    }
+    };
     // get header data
     subsMeta.src   = getASSHeader(headerData);
     // get styles and fonts

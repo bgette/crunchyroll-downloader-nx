@@ -1,5 +1,9 @@
 ## Change Log
 
+### 4.14.0 (2020/01/05)
+- Fix font downloading
+- Code cleanup and improvements
+
 ### 4.12.0 (2019/12/23)
 - Configuration file was split to 3 different parts
 - Binary build for windows x64 (mkvmerge and ffmpeg included)
