@@ -1,5 +1,8 @@
 ## Change Log
 
+### 4.14.1 (2020/01/20)
+- Fix download error (Sorry!)
+
 ### 4.14.0 (2020/01/05)
 - Fix font downloading
 - Code cleanup and improvements

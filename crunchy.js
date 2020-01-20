@@ -568,14 +568,14 @@ async function getMedia(mMeta){
     const mediaPage = await getData(`${api.media_page}${mMeta.m}`,{useProxy:true});
     if(!mediaPage.ok){ return; }
     
-    let redirs   = mediaPage.res.response.redirectUrls;
+    let redirs   = mediaPage.res.redirectUrls;
     let msgItems = mediaPage.res.body.match(/Page.messaging_box_controller.addItems\((.*)\);/);
     if(msgItems){
         msgItems =  JSON.parse(msgItems[1]);
         let msgItemsArr = [];
         console.log('[INFO] PAGE MSGs:');
         for(let m of msgItems){
-            msgItemsArr.push(`  [${m.type.toUpperCase()}] ${m.message_body}`);
+            msgItemsArr.push(`  [${m.type.toUpperCase()}] ${m.message_body.replace(/<[^>]*>?/gm, '')}`);
         }
         msgItemsArr = [...new Set(msgItemsArr)];
         console.log(msgItemsArr.join('\n'));
