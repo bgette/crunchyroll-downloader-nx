@@ -422,9 +422,6 @@ async function doSearch2(){
         let href  = searchData.eq(v).find('a')[0].attribs.href;
         let data  = aniRefListSec.data.filter(value => value.link == href).shift();
         let notLib = href.match(/^\/library\//) ? false : true;
-        if(argv.debug){
-            // console.log(href, data);
-        }
         if(notLib && data && data.type == 'Series'){
             if(session.session_id && checkSessId(session.session_id) && !argv.nosess){
                 await printSeasons({series_id: data.id, name: data.name},session.session_id.value);
