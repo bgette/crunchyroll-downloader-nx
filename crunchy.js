@@ -422,13 +422,22 @@ async function doSearch2(){
         let href  = searchData.eq(v).find('a')[0].attribs.href;
         let data  = aniRefListSec.data.filter(value => value.link == href).shift();
         let notLib = href.match(/^\/library\//) ? false : true;
-        if(notLib && data.type == 'Series'){
+        if(argv.debug){
+            // console.log(href, data);
+        }
+        if(notLib && data && data.type == 'Series'){
             if(session.session_id && checkSessId(session.session_id) && !argv.nosess){
                 await printSeasons({series_id: data.id, name: data.name},session.session_id.value);
             }
             else{
                 console.log('  [ERROR] Can\'t fetch seasons list, session_id cookie required');
             }
+            totalResults++;
+        }
+        if(notLib && !data){
+            console.log('[SERIES] #??????',href.replace(/^\//,'').replace(/-/g,' '));
+            console.log('  [ERROR] Can\'t fetch seasons list, not listed in search data');
+            console.log(`  [ERROR] URL: ${domain}${href}`);
             totalResults++;
         }
     }
