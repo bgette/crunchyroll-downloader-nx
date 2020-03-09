@@ -202,6 +202,7 @@ let audDubT  = '',
     fnSuffix = '',
     fnOutput = '',
     isBatch  = false,
+    dlFailed = false,
     sxList   = [];
 
 // api domains
@@ -445,122 +446,178 @@ async function doSearch2(){
 }
 
 async function getShowById(){
+    // request episode list
     const epListRss = `${api.rss_cid}${argv.s}`;
     const epListReq = await getData(epListRss,{useProxy:true});
+    // request failed
     if(!epListReq.ok){ return 0; }
-    const src = epListReq.res.body;
-    // title
-    let seasonData = xhtml2js({ src, el: 'channel', isXml: true }).$;
-    const vMainTitle = seasonData.find('title').eq(0).text().replace(/ Episodes$/i,'');
-    const isSimulcast = seasonData.find('crunchyroll\\:simulcast').length > 0 ? true : false;
-    // detect dub in title
-    if(vMainTitle.match(dubRegex)){
-        audDubT = dubLangs[vMainTitle.match(dubRegex)[1]];
+    // set data
+    const epListBody = epListReq.res.body;
+    const epListXML = xhtml2js({ src: epListBody, el: 'channel', isXml: true }).$;
+    // set and show main title
+    const showTitle = epListXML.find('title').eq(0).text().replace(/ Episodes$/i,'');
+    const isSimul   = epListXML.find('crunchyroll\\:simulcast').length > 0 ? true : false;
+    // if dubbed title
+    if(showTitle.match(dubRegex)){
+        audDubT = dubLangs[showTitle.match(dubRegex)[1]];
         console.log(`[INFO] audio language code detected, setted to ${audDubT} for this title`);
     }
-    // show title
-    console.log(`[S:${argv.s}] ${vMainTitle}`,(isSimulcast?'[simulcast]':''));
-    // episodes
-    const epsList  = seasonData.find('item');
-    const epsCount = epsList.length;
-    let selEpsArr = [], spCount = 0, isSp = false, eLetter = '';
-    // selected
-    let selEpsInp = argv.e ? argv.e.toString().split(',') : [], selEpsInpRanges = [''];
-    let epsRegex  = /^((?:|E|S))(\d{1,3})$/i;
-    selEpsInp = selEpsInp.map((e)=>{
-        let eSplitNum, eFirstNum, eLastNum;
-        if(e.match('-')){
-            let eRegx = e.split('-');
-            if( eRegx.length == 2
-                    && eRegx[0].match(epsRegex)
-                    && eRegx[1].match(/^\d{1,3}$/)
-            ){
-                eSplitNum = eRegx[0].match(epsRegex);
-                eLetter = eSplitNum[1].match(/s/i) ? 'S' : 'E';
-                eFirstNum = parseInt(eSplitNum[2]);
-                eLastNum = parseInt(eRegx[1]);
-                if(eFirstNum < eLastNum){
-                    for(let i=eFirstNum;i<eLastNum+1;i++){
-                        selEpsInpRanges.push(eLetter + i.toString().padStart(2,'0'));
-                    }
-                    return '';
-                }
-                else{
-                    return eLetter + ( eFirstNum.toString().padStart(2,'0') );
-                }
-            }
-            return '';
-        }
-        else if(e.match(epsRegex)){
-            eSplitNum = e.match(epsRegex);
-            eLetter = eSplitNum[1].match(/s/i) ? 'S' : 'E';
-            eFirstNum = eLetter + eSplitNum[2].padStart(2,'0');
-            return eFirstNum;
-        }
-        return '';
-    });
-    selEpsInp = [...new Set(selEpsInp.concat(selEpsInpRanges))].sort().slice(1);
-    if(selEpsInp.length>1){
-        isBatch = true;
-    }
+    // display title
+    console.log(`[S:${argv.s}] ${showTitle}`,(isSimul?'[simulcast]':''));
     // parse list
-    epsList.each(function(i1){
-        let i2 = isSimulcast ? epsCount - i1 - 1 : i1;
-        isSp = false;
-        let epTitle = epsList.eq(i2).find('crunchyroll\\:episodeTitle').text();
-        let epNum   = epsList.eq(i2).find('crunchyroll\\:episodeNumber').text();
-        let airDate = new Date(epsList.eq(i2).find('crunchyroll\\:premiumPubDate').text());
-        let airFree = new Date(epsList.eq(i2).find('crunchyroll\\:freePubDate').text());
-        let subsArr = epsList.eq(i2).find('crunchyroll\\:subtitleLanguages').text();
-        let dateNow = Date.now() + 1;
-        if(!epNum.match(/^(\d+)$/)){
-            isSp = true;
-            spCount++;
-            epNum = spCount.toString();
+    const titleEpsList = { media: {}, episodes: [], specials: [], meta: {} };
+    const epsList  = epListXML.find('item');
+    const vdsCount = epsList.length;
+    const dateNow = Date.now() + 1;
+    // st num length
+    const epNumLen = { E: 4, S: 3, M: 6 };
+    // create list
+    epsList.each((idx)=>{
+        // set index
+        idx = isSimul ? vdsCount - idx - 1 : idx;
+        // add eps nums
+        let epNumStr = epsList.eq(idx).find('crunchyroll\\:episodeNumber').text();
+        let epNum = epNumStr;
+        epNum = epNum.match(/^\d+$/) ? epNum.padStart(epNumLen['E'],'0') : epNum;
+        if(titleEpsList.episodes.indexOf(epNum) > -1 || !epNum.match(/^\d+$/) ){
+            epNum = 'S' + (titleEpsList.specials.length + 1).toString().padStart(epNumLen['S'],'0');
+            titleEpsList.specials.push(epNum);
         }
-        let epStr = ( isSp ? 'S' : 'E' ) + ( epNum.padStart(2,'0') );
-        let mediaId = epsList.eq(i2).find('crunchyroll\\:mediaId').text();
-        let selMark = '';
-        if(selEpsInp.includes(epStr) && dateNow > airDate){
-            selEpsArr.push({
-                m: mediaId,
-                t: vMainTitle,
-                te: epTitle,
-                e: epStr,
-            });
-            selMark = ' (selected)';
+        else{
+            titleEpsList.episodes.push(epNum);
         }
-        console.log(`  [${epStr}|${mediaId}] ${epTitle}${selMark}`);
+        // add media-episode relation
+        let mediaId = epsList.eq(idx).find('crunchyroll\\:mediaId').text();
+        let mediaIdPad = mediaId.padStart(epNumLen['M'],'0');
+        let epType = epNum.match('S') ? 'specials' : 'episodes';
+        titleEpsList.media[mediaIdPad] = `${epType}:${titleEpsList[epType].length-1}`;
+        // episode info
+        let ssTitle = epsList.eq(idx).find('crunchyroll\\:seriesTitle').text();
+        let epTitle = epsList.eq(idx).find('crunchyroll\\:episodeTitle').text();
+        let airDate = new Date(epsList.eq(idx).find('crunchyroll\\:premiumPubDate').text());
+        let airFree = new Date(epsList.eq(idx).find('crunchyroll\\:freePubDate').text());
+        let subsArr = epsList.eq(idx).find('crunchyroll\\:subtitleLanguages').text();
+        // add data
+        titleEpsList.meta[mediaIdPad] = {
+            m:  mediaId,
+            t:  ssTitle,
+            te: epTitle,
+            e:  epNumStr,
+        };
+        // print info
+        console.log(`  [${epNum}|${mediaIdPad}] ${epTitle}`);
+        // print dates
         let dateStrPrem = shlp.dateString(airDate)
             + ( dateNow < airDate ? ` (in ${shlp.formatTime((airDate-dateNow)/1000)})` : '');
         let dateStrFree = shlp.dateString(airFree)
             + ( dateNow < airFree ? ` (in ${shlp.formatTime((airFree-dateNow)/1000)})` : '');
         console.log(`   - PremPubDate: ${dateStrPrem}`);
         console.log(`   - FreePubDate: ${dateStrFree}`);
+        // subtitles
         if(subsArr){
             console.log(`   - Subtitles: ${parseSubsString(subsArr)}`);
         }
     });
-    console.log(`\n[INFO] Total videos: ${epsCount}\n`);
-    if(selEpsArr.length > 0){
-        for(let sm=0;sm<selEpsArr.length;sm++){
-            await getMedia(selEpsArr[sm]);
+    
+    let inputEps = typeof argv.e != 'undefined'
+        ? argv.e.toString().split(',') : [];
+    let inputEpsRange = [];
+    
+    if(inputEps.length<1){
+        console.log('\n[INFO] Episodes not selected!\n');
+        return;
+    }
+    
+    // selectors
+    const selData = { media: [], eps: [] };
+    const epRexVr = `^(?:E?\\d{1,${epNumLen['E']}}|S\\d{1,${epNumLen['S']}}|M\\d{1,${epNumLen['M']}})$`;
+    const epRegex = new RegExp (epRexVr);
+    
+    // const filter wrong numbers
+    inputEps = inputEps.map((e)=>{
+        // conver to uppercase
+        e = e.toUpperCase();
+        // if range
+        if(e.match('-') && e.split('-').length == 2){
+            let eRange = e.split('-');
+            let mch1 = eRange[0].match(epRegex);
+            if (!mch1) return '';
+            let epLetter = eRange[0].match(/(?:E|S|M)/) ? eRange[0].match(/(?:E|S|M)/)[0] : 'E';
+            let mch2 = eRange[1].match(new RegExp (`^\\d{1,${epNumLen[epLetter]}}$`));
+            if (!mch2) return '';
+            eRange[0] = eRange[0].replace(/(?:E|S|M)/,'');
+            eRange[0] = parseInt(eRange[0]);
+            eRange[1] = parseInt(eRange[1]);
+            if (eRange[0] > eRange[1]) return epLetter + eRange[0];
+            let rangeLength = eRange[1] - eRange[0] + 1;
+            let epsRangeArr = Array(rangeLength).fill(0).map((x, y) => x + y + eRange[0]);
+            epsRangeArr.forEach((i)=>{
+                let selEpStr = epLetter + i.toString().padStart(epNumLen[epLetter],'0');
+                inputEpsRange.push(selEpStr);
+            });
+            return '';
+        }
+        else if(e.match(epRegex)){
+            return e;
+        }
+        return '';
+    });
+    // remove empty and duplicates
+    inputEps = [...new Set(inputEps.concat(inputEpsRange))];
+    const mediaList = Object.keys(titleEpsList.media).sort();
+    // select episodes
+    inputEps.map((e)=>{
+        if(e.match(/M/)){
+            e = e.replace(/M/,'').padStart(epNumLen['M'],'0');
+            if(selData.media.indexOf(e) > -1) return '';
+            let idx = mediaList.indexOf(e);
+            if(idx > -1){
+                let epArr = titleEpsList.media[e].split(':');
+                selData.eps.push(titleEpsList[epArr[0]][epArr[1]]);
+                selData.media.push(e);
+            }
+        }
+        else{
+            if(e == '') return '';
+            let eLetter = e.match(/S/) ? 'S' : 'E';
+            e = (eLetter == 'S' ? 'S' : '') + e.replace(/E|S/,'').padStart(epNumLen[eLetter],'0');
+            if(selData.eps.indexOf(e) > -1) return '';
+            let seqArr = eLetter == 'S' ? 'specials' : 'episodes';
+            let seqIdx = titleEpsList[seqArr].indexOf(e);
+            if(seqIdx > -1){
+                let idx = Object.values(titleEpsList.media).indexOf(`${seqArr}:${seqIdx}`);
+                let msq = mediaList[idx];
+                selData.media.push(msq)
+                selData.eps.push(e);
+            }
+        }
+    });
+    // display
+    if(selData.eps.length<1){
+        console.log('\n[INFO] Episodes not selected!\n');
+        return;
+    }
+    selData.eps.sort();
+    console.log(`\n[INFO] Selected Episodes:`,selData.eps.join(', '));
+    const selMedia = selData.media;
+    // start selecting from list
+    if(selMedia.length > 0){
+        for(let sm=0;sm<selMedia.length;sm++){
+            await getMedia(titleEpsList.meta[selMedia[sm]]);
         }
     }
 }
 
 function parseSubsString(subs){
-    subs = subs.split(',');
-    let subsStr = '';
-    for(let lid=0;lid<subs.length;lid++){
-        if ( !langCodes[subs[lid]] ) {
-            console.log(`[ERROR] Language code for "${subs[lid]}" don't found.`);
+    subs = subs.split(',').map(s=>{
+        let sLang = s.match(/(\w{2}) - (\w{2})/);
+        sLang = `${sLang[1]}${sLang[2].toUpperCase()}`;
+        if ( !langCodes[s] ) {
+            console.error('   - [ERROR] Language code for "%s" not found.', sLang);
         }
-        else{
-            subsStr += langCodes[subs[lid]][1] + (lid+1<subs.length?', ':'');
-        }
-    }
-    return subsStr;
+        return sLang;
+    });
+    return subs.join(', ');
 }
 
 async function getMedia(mMeta){
@@ -811,47 +868,33 @@ async function getMedia(mMeta){
                         }
                     }
                     let tsFile = path.join(cfg.dir.content, fnOutput);
-                    let resumeFile = `${tsFile}.ts.resume`;
-                    let streamOffset = 0;
-                    if(fs.existsSync(tsFile) && fs.existsSync(resumeFile)){
-                        try{
-                            let resume = JSON.parse(fs.readFileSync(resumeFile, 'utf-8'));
-                            if(resume.total == chunkList.segments.length && resume.completed != resume.total){
-                                streamOffset = resume.completed;
-                            }
-                        }
-                        catch(e){
-                            console.log(e);
-                        }
-                    }
-                    
                     let streamdlParams = {
                         fn: `${tsFile}.ts`,
                         m3u8json: chunkList,
                         baseurl: chunkList.baseUrl,
                         pcount: argv.tsparts,
-                        partsOffset: streamOffset,
+                        partsOffset: 0,
                         proxy: ( proxyHLS ? proxyHLS : false),
                     };
                     let dldata = await new streamdl(streamdlParams).download();
                     if(!dldata.ok){
-                        fs.writeFileSync(resumeFile, JSON.stringify(dldata.parts));
-                        console.log(`[ERROR] ${dldata.error}\n`);
-                        argv.skipmux = true;
+                        fs.writeFileSync(`${tsFile}.ts.resume`, JSON.stringify(dldata.parts));
+                        console.log(`[ERROR] DL Stats: ${JSON.stringify(dldata.parts)}\n`);
+                        dlFailed = true;
                     }
-                    else if(fs.existsSync(resumeFile) && dldata.ok){
-                        fs.unlinkSync(resumeFile);
+                    else if(fs.existsSync(`${tsFile}.ts.resume`) && dldata.ok){
+                        fs.unlinkSync(`${tsFile}.ts.resume`);
                     }
                 }
             }
         }
         else if(argv.x > plServerList.length){
             console.log('[ERROR] Server not selected!\n');
-            argv.skipmux = true;
+            dlFailed = true;
         }
         else{
             console.log('[ERROR] Quality not selected!\n');
-            argv.skipmux = true;
+            dlFailed = true;
         }
     }
     
@@ -860,7 +903,7 @@ async function getMedia(mMeta){
     
     // download subs
     sxList = [];
-    if(!argv.skipsubs || argv.dlsubs != 'none'){
+    if(!argv.skipsubs && argv.dlsubs != 'none'){
         console.log('[INFO] Downloading subtitles...');
         if(!getOldSubs && mediaData.subtitles.length < 1){
             console.log('[WARN] Can\'t find urls for subtitles! If you downloading subs version, try use oldsubs cli option');
@@ -947,11 +990,10 @@ async function getMedia(mMeta){
             }
         }
         else if(mediaData.subtitles.length > 0){
-            for(let s of mediaData.subtitles ){
+            for(let s of mediaData.subtitles){
                 let subsAssApi = await getData(s.url,{useProxy:(argv.ssp?false:true)});
                 let subsParsed = {};
                 subsParsed.id = s.url.match(/_(\d+)\.txt\?/)[1];
-                subsParsed.fonts = fontsData.assFonts(subsAssApi.res.body);
                 subsParsed.langCode = s.language.match(/(\w{2})(\w{2})/);
                 subsParsed.langCode = `${subsParsed.langCode[1]} - ${subsParsed.langCode[2]}`.toLowerCase();
                 subsParsed.langStr  = langCodes[subsParsed.langCode][1];
@@ -964,28 +1006,37 @@ async function getMedia(mMeta){
                 subsParsed.file = `${fnOutput}.${subsExtFile}.ass`;
                 if(argv.dlsubs == 'all' || argv.dlsubs == s.language){
                     if(subsAssApi.ok){
+                        subsParsed.fonts = fontsData.assFonts(subsAssApi.res.body);
                         subsParsed.title = subsAssApi.res.body.split('\r\n')[1].replace(/^Title: /,'');
+                        subsAssApi.res.body = '\ufeff' + subsAssApi.res.body;
                         fs.writeFileSync(path.join(cfg.dir.content, subsParsed.file), subsAssApi.res.body);
                         console.log(`[INFO] Downloaded: ${subsParsed.file}`);
                         sxList.push(subsParsed);
                     }
                     else{
-                        console.log(`[WARN] Downloaded failed: ${subsParsed.file}`);
+                        console.log(`[WARN] Download failed: ${subsParsed.file}`);
                     }
                 }
                 else{
-                    console.log(`[INFO] Downloaded skipped: ${subsParsed.file}`);
+                    console.log(`[INFO] Download skipped: ${subsParsed.file}`);
                 }
             }
         }
     }
+    else{
+        console.log(`[INFO] Subtitles downloading skipped`);
+    }
     
     // go to muxing
-    if(argv.skipmux){
-        console.log();
-        return;
+    if(!argv.skipmux && !dlFailed){
+        await muxStreams();
     }
-    await muxStreams();
+    else{
+        console.log();
+    }
+    
+    dlFailed = false;
+    return;
     
 }
 
@@ -1204,6 +1255,9 @@ async function getData(durl, params){
         let res = await got(options);
         if(!params.skipCookies && res.headers['set-cookie']){
             setNewCookie(res.headers['set-cookie']);
+            if(session.session_id && argv.nosess){
+                argv.nosess = false;
+            }
         }
         return {
             ok: true,

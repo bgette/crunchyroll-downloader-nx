@@ -84,7 +84,7 @@ function parse(meta, src){
 }
 function getASSHeader(data){
     let src = [
-        // \ufeff
+        '\ufeff',
         '[Script Info]',
         `Title: ${data.title}`,
         `Original Script: ${data.user}  [http://www.crunchyroll.com/user/${data.user}]`,

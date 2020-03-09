@@ -1,5 +1,10 @@
 ## Change Log
 
+### 4.15.0 (2020/03/09)
+- Rewritten episode selector
+- Update dependencies
+* Known issue: Proxy is broken
+
 ### 4.14.2 (2020/01/21)
 - Fix search2 for excluded titles
 
