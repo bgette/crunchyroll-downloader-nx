@@ -6,6 +6,9 @@ const fs = require('fs-extra');
 const modulesCleanup = require('removeNPMAbsolutePaths');
 const { compile } = require('nexe');
 
+const buildsDir = './_builds';
+const nodeVer = '-12.15.0';
+
 // main
 (async function(){
     const buildStr = `${pkg.name}-${pkg.version}`;
@@ -16,11 +19,11 @@ const { compile } = require('nexe');
         process.exit();
     }
     await modulesCleanup('.');
-    if(!fs.existsSync('./_builds')){
-        fs.mkdirSync('./_builds');
+    if(!fs.existsSync(buildsDir)){
+        fs.mkdirSync(buildsDir);
     }
     const buildFull = `${buildStr}-${buildType}`;
-    const buildDir = `./_builds/${buildFull}`;
+    const buildDir = `${buildsDir}/${buildFull}`;
     if(fs.existsSync(buildDir)){
         fs.removeSync(buildDir);
     }
@@ -33,7 +36,7 @@ const { compile } = require('nexe');
     const buildConfig = {
         input: './crunchy.js',
         output: `${buildDir}/${pkg.short_name}`,
-        target: getTarget(buildType),
+        target: getTarget(buildType) + nodeVer,
         resources: [
             './modules/module.*',
         ],
@@ -41,16 +44,16 @@ const { compile } = require('nexe');
     console.log(`[Build] Build configuration: ${buildFull}`);
     await compile(buildConfig);
     if(fs.existsSync('./bin/ffmpeg')){
-        fs.copySync('./bin/ffmpeg', `${buildDir}/bin/ffmpeg`);
+        // fs.copySync('./bin/ffmpeg', `${buildDir}/bin/ffmpeg`);
     }
     if(fs.existsSync('./bin/ffmpeg.exe')){
-        fs.copySync('./bin/ffmpeg.exe', `${buildDir}/bin/ffmpeg.exe`);
+        // fs.copySync('./bin/ffmpeg.exe', `${buildDir}/bin/ffmpeg.exe`);
     }
     if(fs.existsSync('./bin/mkvmerge')){
-        fs.copySync('./bin/mkvmerge', `${buildDir}/bin/mkvmerge`);
+        // fs.copySync('./bin/mkvmerge', `${buildDir}/bin/mkvmerge`);
     }
     if(fs.existsSync('./bin/mkvmerge.exe')){
-        fs.copySync('./bin/mkvmerge.exe', `${buildDir}/bin/mkvmerge.exe`);
+        // fs.copySync('./bin/mkvmerge.exe', `${buildDir}/bin/mkvmerge.exe`);
     }
     fs.copySync('./config/bin-path.yml', `${buildDir}/config/bin-path.yml`);
     fs.copySync('./config/cli-defaults.yml', `${buildDir}/config/cli-defaults.yml`);
@@ -58,6 +61,7 @@ const { compile } = require('nexe');
     fs.copySync('./cmd-here.bat', `${buildDir}/cmd-here.bat`);
     fs.copySync('./docs/', `${buildDir}/docs/`);
     fs.copySync('./LICENSE.md', `${buildDir}/docs/LICENSE.md`);
+    require('child_process').execSync(`7z a -t7z "${buildsDir}/${buildFull}.7z" "${buildDir}"`,{stdio:[0,1,2]});
 }());
 
 function getTarget(bt){

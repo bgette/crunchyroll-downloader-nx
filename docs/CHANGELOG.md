@@ -1,5 +1,9 @@
 ## Change Log
 
+### 4.15.1 (2020/03/10)
+- Better binary file handling
+* Known issue: Proxy is broken
+
 ### 4.15.0 (2020/03/09)
 - Rewritten episode selector
 - Update dependencies

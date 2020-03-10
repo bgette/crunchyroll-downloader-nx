@@ -587,7 +587,7 @@ async function getShowById(){
             if(seqIdx > -1){
                 let idx = Object.values(titleEpsList.media).indexOf(`${seqArr}:${seqIdx}`);
                 let msq = mediaList[idx];
-                selData.media.push(msq)
+                selData.media.push(msq);
                 selData.eps.push(e);
             }
         }
@@ -598,7 +598,7 @@ async function getShowById(){
         return;
     }
     selData.eps.sort();
-    console.log(`\n[INFO] Selected Episodes:`,selData.eps.join(', '));
+    console.log('\n[INFO] Selected Episodes:',selData.eps.join(', '));
     const selMedia = selData.media;
     // start selecting from list
     if(selMedia.length > 0){
@@ -1024,7 +1024,7 @@ async function getMedia(mMeta){
         }
     }
     else{
-        console.log(`[INFO] Subtitles downloading skipped`);
+        console.log('[INFO] Subtitles downloading skipped');
     }
     
     // go to muxing
@@ -1055,17 +1055,20 @@ async function muxStreams(){
     // ftag
     argv.ftag = argv.ftag ? argv.ftag : argv.a;
     argv.ftag = shlp.cleanupFilename(argv.ftag);
+    // usage
+    let usableMKVmerge = true;
+    let usableFFmpeg = true;
     // check exec path
     let mkvmergebinfile = await lookpath(path.join(cfg.bin.mkvmerge));
     let ffmpegbinfile   = await lookpath(path.join(cfg.bin.ffmpeg));
     // check exec
     if( !argv.mp4 && !mkvmergebinfile ){
         console.log('[WARN] MKVMerge not found, skip using this...');
-        cfg.bin.mkvmerge = false;
+        usableMKVmerge = false;
     }
-    if( !mkvmergebinfile && !ffmpegbinfile || argv.mp4 && !ffmpegbinfile ){
+    if( !usableMKVmerge && !ffmpegbinfile || argv.mp4 && !ffmpegbinfile ){
         console.log('[WARN] FFmpeg not found, skip using this...');
-        cfg.bin.ffmpeg = false;
+        usableFFmpeg = false;
     }
     // collect fonts info
     let fontsList = [];
@@ -1077,7 +1080,8 @@ async function muxStreams(){
         console.log(`\n[INFO] Required fonts (${fontsList.length}):`,fontsList.join(', '));
     }
     // mux
-    if(!argv.mp4 && cfg.bin.mkvmerge){
+    if(!argv.mp4 && usableMKVmerge){
+        // base
         let mkvmux  = [];
         // defaults
         mkvmux.push('--output',`${muxFile}.mkv`);
@@ -1110,10 +1114,10 @@ async function muxStreams(){
             }
         }
         fs.writeFileSync(`${muxFile}.json`,JSON.stringify(mkvmux,null,'  '));
-        shlp.exec('mkvmerge',`"${cfg.bin.mkvmerge}"`,`@"${muxFile}.json"`);
+        shlp.exec('mkvmerge',`"${mkvmergebinfile}"`,`@"${muxFile}.json"`);
         fs.unlinkSync(`${muxFile}.json`);
     }
-    else if(cfg.bin.ffmpeg){
+    else if(usableFFmpeg){
         let ffmux  = [], ffext = !argv.mp4 ? 'mkv' : 'mp4';
         let ffsubs = addSubs ? true : false;
         let ffmap = [], ffmeta = [];
@@ -1153,7 +1157,7 @@ async function muxStreams(){
         ffmux.push('-metadata:s:a:0',`language=${audioDub}`);
         ffmux = ffmux.concat(ffmeta);
         ffmux.push(`"${muxFile}.${ffext}"`);
-        try{ shlp.exec('ffmpeg',`"${cfg.bin.ffmpeg}"`,ffmux.join(' ')); }catch(e){}
+        try{ shlp.exec('ffmpeg',`"${ffmpegbinfile}"`,ffmux.join(' ')); }catch(e){}
     }
     else{
         console.log('\n[INFO] Done!\n');
