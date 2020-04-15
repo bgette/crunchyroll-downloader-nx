@@ -84,8 +84,7 @@ function parse(meta, src){
 }
 function getASSHeader(data){
     let src = [
-        '\ufeff',
-        '[Script Info]',
+        '\ufeff[Script Info]',
         `Title: ${data.title}`,
         `Original Script: ${data.user}  [http://www.crunchyroll.com/user/${data.user}]`,
         'Original Translation: ',
@@ -154,7 +153,7 @@ function getASSDialogs(data){
     let src = [
         '',
         '[Events]',
-        'Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text'
+        'Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text',
     ];
     let eventList = data.find('event');
     for(let i=0;i<eventList.length;i++){

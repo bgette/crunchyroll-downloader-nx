@@ -4,8 +4,10 @@
 /crunchy-*
 /node_modules/
 /videos/*.json
+cr.bat
 session.yml
 package-lock.json
+*.user.yml
 *.ttf
 *.otf
 *.txt
