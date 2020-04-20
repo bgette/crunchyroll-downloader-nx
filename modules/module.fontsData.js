@@ -1,5 +1,5 @@
 // fonts src
-const root = 'https://static.crunchyroll.com/vilos/assets/fonts/';
+const root = 'https://static.crunchyroll.com/vilos-v2/web/vilos/assets/libass-fonts/';
 
 // file list
 const fonts = {

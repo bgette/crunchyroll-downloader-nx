@@ -785,6 +785,10 @@ async function getMedia(mMeta){
         console.log('[WARN] No streams found!');
     }
     
+    if(argv.nullstream){
+        hlsStream = '';
+    }
+    
     // download stream
     if(hlsStream == '' && !isClip){
         console.log('[ERROR] No available full raw stream! Session expired?');
@@ -932,8 +936,13 @@ async function getMedia(mMeta){
         }
     }
     
-    // always get old subs
+    // get old subs
     getOldSubs = argv.oldsubs;
+    
+    // oldsubs warning
+    if(getOldSubs){
+        console.log('[WARN] oldsubs cli option is broken, see issue #2 at github');
+    }
     
     // download subs
     sxList = [];
@@ -982,7 +991,7 @@ async function getMedia(mMeta){
                             let subsTt = subsListXml[s].attribs.title;
                             let subsXmlApi = await getData(`${api.subs_file}${subsId}`,{useProxy:true});
                             if(subsXmlApi.ok){
-                                let subXml      = crunchySubs.decrypt(subsListXml[s].attribs.id,subsXmlApi.res.body);
+                                let subXml      = crunchySubs.decrypt(null, subsXmlApi.res.body);
                                 if(subXml.ok){
                                     let subsParsed = crunchySubs.parse(subsListXml[s].attribs,subXml.data);
                                     let sLang = subsParsed.langCode.match(/(\w{2}) - (\w{2})/);
@@ -1004,6 +1013,10 @@ async function getMedia(mMeta){
                                     else{
                                         console.log(`[INFO] Download skipped: ${subsParsed.file}`);
                                     }
+                                }
+                                else{
+                                    console.log(`[WARN] Failed decode subtitles #${subsId} ${subsTt}`);
+                                    console.log(subXml.data);
                                 }
                             }
                             else{

@@ -4,27 +4,28 @@ const shlp = require('sei-helper');
 const xhtml2js = shlp.xhtml2js;
 
 // decrypt
-function createString(args) {
-    let a = args[2];
-    let b = args[3];
-    let res = '';
-    for (let i = 0; i < args[0]; i++) {
-        b += a;
-        a = b - a;
-        res += String.fromCharCode(b % args[1] + 33);
+function generateKeyAux(count, modulo, start){
+    // Generate String: $&).6CXzPHw=2N_+isZK
+    let res = start;
+    for (let i of Array(count).keys()){
+        res.push(res[res.length-1] + res[res.length-2]);
     }
+    res.splice(0, 2)
+    res = res.map(x => x % modulo + 33);
+    res = String.fromCharCode(...res);
     return res;
 }
-function generateKey(mediaid) {
-    let eq1 = Math.floor(Math.sqrt(6.9) * Math.pow(2, 25));
-    let eq2 = (mediaid ^ eq1) ^ (mediaid ^ eq1) >> 3 ^ (eq1 ^ mediaid) * 32;
-    if (eq2 < 0) {
-        eq2 += 0x100000000;
-    }
-    let finalHash = crypto.createHash('sha1').update(createString([20, 97, 1, 2]) + eq2.toString(), 'utf8').digest();
-    let res = Buffer.alloc(32);
-    finalHash.copy(res);
-    return res;
+function generateKey(id) {
+    const hashMagicConst = Math.floor(Math.sqrt(6.9) * Math.pow(2, 25)); // 0x0540E9FA
+    const hashMagicBaseNum = hashMagicConst ^ id;
+    const hashMagicNumber = hashMagicBaseNum ^ hashMagicBaseNum >> 3 ^ hashMagicBaseNum * 32;
+    const finalHashMagicNumber = hashMagicNumber < 0 ? hashMagicNumber + 0x100000000 : hashMagicNumber;
+    const keyAux  = generateKeyAux(20, 97, [1, 2]);
+    const keyText = keyAux + finalHashMagicNumber;
+    const keyHash = crypto.createHash('sha1').update(keyText, 'utf8').digest();
+    const finalKey = Buffer.alloc(32);
+    keyHash.copy(finalKey);
+    return finalKey;
 }
 function doDecrypt(_id, _iv, _data) {
     let key  = generateKey(_id);
@@ -33,19 +34,27 @@ function doDecrypt(_id, _iv, _data) {
     dec.setAutoPadding();
     let decrypted = dec.update(_data, 'base64');
     decrypted = Buffer.concat([decrypted, dec.final()]);
-    return zlib.unzipSync(decrypted).toString('utf8');
+    try{
+        const zlibData = zlib.unzipSync(decrypted).toString('utf8');
+        return { ok: true, data: zlibData };
+    }
+    catch(err){
+        return  { ok: false, data: err };
+    }
 }
 function decrypt(id, data) {
     let err = data.match(/<error>(.*)<\/error>/);
     if (err) {
-        return { ok: false, data: `[ERROR] Unknown error, data:\n${err}` };
+        return { ok: false, data: err };
     }
-    let res = data.match(/<iv>(.*)<\/iv>.*<data>(.*)<\/data>/);
+    let res = data.match(/id='(.*)'.*<iv>(.*)<\/iv>.*<data>(.*)<\/data>/);
     if (!res) {
-        return { ok: false, data: `[ERROR] Unknown error, data:\n${data}` };
+        return { ok: false, data: data };
     }
-    return { ok: true, data: doDecrypt(id, res[1], res[2]) };
+    id = id ? id : res[1];
+    return doDecrypt(id, res[2], res[3]);
 }
+
 // parse
 function parse(meta, src){
     // pre default
