@@ -1,5 +1,15 @@
 ## Change Log
 
+### 4.16.0 (2020/03/28)
+- Updated modules
+- Updated url to fonts
+- Improved dlsubs cli option
+- Custom configs
+
+Known issues:
+- Proxy is broken
+- oldsubs cli option is broken
+
 ### 4.15.1 (2020/03/10)
 - Better binary file handling
 * Known issue: Proxy is broken

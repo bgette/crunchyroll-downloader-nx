@@ -805,134 +805,137 @@ async function getMedia(mMeta){
         console.log('[INFO] Playlist URL:',(argv.ssu?hlsStream:''),(streamKey));
         let streamPlaylist = await getData(hlsStream,{useProxy:(argv.ssp?false:true)});
         if(!streamPlaylist.ok){
+            console.log(streamPlaylist);
             console.log('[ERROR] CAN\'T FETCH VIDEO PLAYLISTS!');
-            return;
-        }
-        // parse
-        let plQualityLinkList = m3u8(streamPlaylist.res.body);
-        // main servers
-        let mainServersList = [
-            'v.vrv.co',
-            'a-vrv.akamaized.net'
-        ];
-        // variables
-        let plServerList = [],
-            plStreams    = {},
-            plQualityStr = [],
-            plMaxQuality = 240;
-        // set variables
-        for(let s of plQualityLinkList.playlists){
-            let plResolution = s.attributes.RESOLUTION.height;
-            let plResText    = `${plResolution}p`;
-            plMaxQuality = plMaxQuality < plResolution ? plResolution : plMaxQuality;
-            let plUrlDl  = s.uri;
-            let plServer = plUrlDl.split('/')[2];
-            if(!plServerList.includes(plServer)){
-                plServerList.push(plServer);
-            }
-            if(!Object.keys(plStreams).includes(plServer)){
-                plStreams[plServer] = {};
-            }
-            if(plStreams[plServer][plResText] && plStreams[plServer][plResText] != plUrlDl){
-                console.log(`[WARN] Non duplicate url for ${plServer} detected, please report to developer!`);
-            }
-            else{
-                plStreams[plServer][plResText] = plUrlDl;
-            }
-            // set plQualityStr
-            let plBandwidth  = Math.round(s.attributes.BANDWIDTH/1024);
-            if(plResolution<1000){
-                plResolution = plResolution.toString().padStart(4,' ');
-            }
-            let qualityStrAdd   = `${plResolution}p (${plBandwidth}KiB/s)`;
-            let qualityStrRegx  = new RegExp(qualityStrAdd.replace(/(:|\(|\)|\/)/g,'\\$1'),'m');
-            let qualityStrMatch = !plQualityStr.join('\r\n').match(qualityStrRegx);
-            if(qualityStrMatch){
-                plQualityStr.push(qualityStrAdd);
-            }
-        }
-        
-        for(let s of mainServersList){
-            if(plServerList.includes(s)){
-                plServerList.splice(plServerList.indexOf(s),1);
-                plServerList.unshift(s);
-                break;
-            }
-        }
-        
-        argv.q = argv.q == 'max' ? `${plMaxQuality}p` : argv.q;
-        
-        let plSelectedServer = plServerList[argv.x-1];
-        let plSelectedList   = plStreams[plSelectedServer];
-        let videoUrl = argv.x < plServerList.length+1 && plSelectedList[argv.q] ? plSelectedList[argv.q] : '';
-        
-        plQualityStr.sort();
-        console.log(`[INFO] Servers available:\n\t${plServerList.join('\n\t')}`);
-        console.log(`[INFO] Available qualities:\n\t${plQualityStr.join('\n\t')}`);
-        
-        if(videoUrl != ''){
-            console.log(`[INFO] Selected quality: ${argv.q} @ ${plSelectedServer}`);
-            if(argv.ssu){
-                console.log('[INFO] Stream URL:',videoUrl);
-            }
-            // filename
-            fnSuffix = argv.suffix.replace('SIZEp',argv.q);
-            fnOutput = fnOutputGen();
-            console.log(`[INFO] Output filename: ${fnOutput}`);
-            if(argv.skipdl){
-                console.log('[INFO] Video download skipped!\n');
-            }
-            else{
-                // request
-                let chunkPage = await getData(videoUrl,{useProxy:(argv.ssp?false:true)});
-                if(!chunkPage.ok){
-                    console.log('[ERROR] CAN\'T FETCH VIDEO PLAYLIST!');
-                    argv.skipmux = true;
-                }
-                else{
-                    let chunkList = m3u8(chunkPage.res.body);
-                    chunkList.baseUrl = videoUrl.split('/').slice(0, -1).join('/')+'/';
-                    // proxy
-                    let proxyHLS = false;
-                    if(argv.proxy && !argv.ssp){
-                        try{
-                            proxyHLS = {};
-                            proxyHLS.url = buildProxyUrl(argv.proxy,argv['proxy-auth']);
-                        }
-                        catch(e){
-                            console.log(`\n[WARN] Not valid proxy URL${e.input?' ('+e.input+')':''}!`);
-                            console.log('[WARN] Skiping...');
-                            proxyHLS = false;
-                        }
-                    }
-                    let tsFile = path.join(cfg.dir.content, fnOutput);
-                    let streamdlParams = {
-                        fn: `${tsFile}.ts`,
-                        m3u8json: chunkList,
-                        baseurl: chunkList.baseUrl,
-                        pcount: argv.tsparts,
-                        partsOffset: 0,
-                        proxy: ( proxyHLS ? proxyHLS : false),
-                    };
-                    let dldata = await new streamdl(streamdlParams).download();
-                    if(!dldata.ok){
-                        fs.writeFileSync(`${tsFile}.ts.resume`, JSON.stringify(dldata.parts));
-                        console.log(`[ERROR] DL Stats: ${JSON.stringify(dldata.parts)}\n`);
-                        dlFailed = true;
-                    }
-                    else if(fs.existsSync(`${tsFile}.ts.resume`) && dldata.ok){
-                        fs.unlinkSync(`${tsFile}.ts.resume`);
-                    }
-                }
-            }
-        }
-        else if(argv.x > plServerList.length){
-            console.log('[ERROR] Server not selected!\n');
             dlFailed = true;
         }
         else{
-            console.log('[ERROR] Quality not selected!\n');
-            dlFailed = true;
+            // parse
+            let plQualityLinkList = m3u8(streamPlaylist.res.body);
+            // main servers
+            let mainServersList = [
+                'v.vrv.co',
+                'a-vrv.akamaized.net'
+            ];
+            // variables
+            let plServerList = [],
+                plStreams    = {},
+                plQualityStr = [],
+                plMaxQuality = 240;
+            // set variables
+            for(let s of plQualityLinkList.playlists){
+                let plResolution = s.attributes.RESOLUTION.height;
+                let plResText    = `${plResolution}p`;
+                plMaxQuality = plMaxQuality < plResolution ? plResolution : plMaxQuality;
+                let plUrlDl  = s.uri;
+                let plServer = plUrlDl.split('/')[2];
+                if(!plServerList.includes(plServer)){
+                    plServerList.push(plServer);
+                }
+                if(!Object.keys(plStreams).includes(plServer)){
+                    plStreams[plServer] = {};
+                }
+                if(plStreams[plServer][plResText] && plStreams[plServer][plResText] != plUrlDl){
+                    console.log(`[WARN] Non duplicate url for ${plServer} detected, please report to developer!`);
+                }
+                else{
+                    plStreams[plServer][plResText] = plUrlDl;
+                }
+                // set plQualityStr
+                let plBandwidth  = Math.round(s.attributes.BANDWIDTH/1024);
+                if(plResolution<1000){
+                    plResolution = plResolution.toString().padStart(4,' ');
+                }
+                let qualityStrAdd   = `${plResolution}p (${plBandwidth}KiB/s)`;
+                let qualityStrRegx  = new RegExp(qualityStrAdd.replace(/(:|\(|\)|\/)/g,'\\$1'),'m');
+                let qualityStrMatch = !plQualityStr.join('\r\n').match(qualityStrRegx);
+                if(qualityStrMatch){
+                    plQualityStr.push(qualityStrAdd);
+                }
+            }
+            
+            for(let s of mainServersList){
+                if(plServerList.includes(s)){
+                    plServerList.splice(plServerList.indexOf(s),1);
+                    plServerList.unshift(s);
+                    break;
+                }
+            }
+            
+            argv.q = argv.q == 'max' ? `${plMaxQuality}p` : argv.q;
+            
+            let plSelectedServer = plServerList[argv.x-1];
+            let plSelectedList   = plStreams[plSelectedServer];
+            let videoUrl = argv.x < plServerList.length+1 && plSelectedList[argv.q] ? plSelectedList[argv.q] : '';
+            
+            plQualityStr.sort();
+            console.log(`[INFO] Servers available:\n\t${plServerList.join('\n\t')}`);
+            console.log(`[INFO] Available qualities:\n\t${plQualityStr.join('\n\t')}`);
+            
+            if(videoUrl != ''){
+                console.log(`[INFO] Selected quality: ${argv.q} @ ${plSelectedServer}`);
+                if(argv.ssu){
+                    console.log('[INFO] Stream URL:',videoUrl);
+                }
+                // filename
+                fnSuffix = argv.suffix.replace('SIZEp',argv.q);
+                fnOutput = fnOutputGen();
+                console.log(`[INFO] Output filename: ${fnOutput}`);
+                if(argv.skipdl){
+                    console.log('[INFO] Video download skipped!\n');
+                }
+                else{
+                    // request
+                    let chunkPage = await getData(videoUrl,{useProxy:(argv.ssp?false:true)});
+                    if(!chunkPage.ok){
+                        console.log('[ERROR] CAN\'T FETCH VIDEO PLAYLIST!');
+                        argv.skipmux = true;
+                    }
+                    else{
+                        let chunkList = m3u8(chunkPage.res.body);
+                        chunkList.baseUrl = videoUrl.split('/').slice(0, -1).join('/')+'/';
+                        // proxy
+                        let proxyHLS = false;
+                        if(argv.proxy && !argv.ssp){
+                            try{
+                                proxyHLS = {};
+                                proxyHLS.url = buildProxyUrl(argv.proxy,argv['proxy-auth']);
+                            }
+                            catch(e){
+                                console.log(`\n[WARN] Not valid proxy URL${e.input?' ('+e.input+')':''}!`);
+                                console.log('[WARN] Skiping...');
+                                proxyHLS = false;
+                            }
+                        }
+                        let tsFile = path.join(cfg.dir.content, fnOutput);
+                        let streamdlParams = {
+                            fn: `${tsFile}.ts`,
+                            m3u8json: chunkList,
+                            baseurl: chunkList.baseUrl,
+                            pcount: argv.tsparts,
+                            partsOffset: 0,
+                            proxy: ( proxyHLS ? proxyHLS : false),
+                        };
+                        let dldata = await new streamdl(streamdlParams).download();
+                        if(!dldata.ok){
+                            fs.writeFileSync(`${tsFile}.ts.resume`, JSON.stringify(dldata.parts));
+                            console.log(`[ERROR] DL Stats: ${JSON.stringify(dldata.parts)}\n`);
+                            dlFailed = true;
+                        }
+                        else if(fs.existsSync(`${tsFile}.ts.resume`) && dldata.ok){
+                            fs.unlinkSync(`${tsFile}.ts.resume`);
+                        }
+                    }
+                }
+            }
+            else if(argv.x > plServerList.length){
+                console.log('[ERROR] Server not selected!\n');
+                dlFailed = true;
+            }
+            else{
+                console.log('[ERROR] Quality not selected!\n');
+                dlFailed = true;
+            }
         }
     }
     
@@ -985,7 +988,7 @@ async function getMedia(mMeta){
                         parse: true,
                     }).data.children;
                     // subsDecrypt
-                    for(let s=0;s<subsListXml.length;s++){
+                    for(let s=0; s<subsListXml.length; s++){
                         if(subsListXml[s].tagName == 'subtitle'){
                             let subsId = subsListXml[s].attribs.id;
                             let subsTt = subsListXml[s].attribs.title;
@@ -1004,7 +1007,7 @@ async function getMedia(mMeta){
                                         subsParsed.langStr
                                     ].join(' ');
                                     subsParsed.file = `${fnOutput}.${subsExtFile}.ass`;
-                                    if(argv.dlsubs == 'all' || argv.dlsubs == sLang){
+                                    if(argv.dlsubs.includes('all') || argv.dlsubs.includes(sLang)){
                                         fs.writeFileSync(path.join(cfg.dir.content, subsParsed.file),subsParsed.src);
                                         delete subsParsed.src;
                                         console.log(`[INFO] Downloaded: ${subsParsed.file}`);
@@ -1051,7 +1054,7 @@ async function getMedia(mMeta){
                     subsParsed.langStr
                 ].join(' ');
                 subsParsed.file = `${fnOutput}.${subsExtFile}.ass`;
-                if(argv.dlsubs == 'all' || argv.dlsubs == s.language){
+                if(argv.dlsubs.includes('all') || argv.dlsubs.includes(s.language)){
                     let subsAssApi = await getData(s.url,{useProxy:(argv.ssp?false:true)});
                     if(subsAssApi.ok){
                         subsParsed.fonts = fontsData.assFonts(subsAssApi.res.body);
@@ -1294,7 +1297,6 @@ async function getData(durl, params){
         // throwHttpErrors: false,
         method: params.method ? params.method : 'GET',
         headers: {},
-        url: durl
     };
     // set binary
     if(params.binary == true){
@@ -1345,11 +1347,21 @@ async function getData(durl, params){
                 shlp.cookie.make(Object.assign({c_locale:{value:'enUS'}},session),cookie);
         }
     }
-    if(argv.debug){
-        console.log('[REQ]',options);
-    }
+    // fix and debug
+    options.hooks = {
+        beforeRequest: [
+            (options) => {
+                options.url.search = options.url.search.replace(/%7E/g,'~');
+                if(argv.debug){
+                    console.log('[DEBUG] GOT OPTIONS:');
+                    console.log(options);
+                }
+            }
+        ]
+    };
+    // do req
     try {
-        let res = await got(options);
+        let res = await got(durl, options);
         if(!params.skipCookies && res.headers['set-cookie']){
             setNewCookie(res.headers['set-cookie']);
             if(session.session_id && argv.nosess){
