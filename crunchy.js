@@ -31,6 +31,7 @@ const streamdl = require('hls-download');
 const modulesFolder = __dirname + '/modules';
 const fontsData = require(modulesFolder+'/module.fontsData');
 const crunchySubs = require(modulesFolder+'/module.crunchySubs');
+const langsData = require(modulesFolder+'/module.langsData');
 
 // get cfg file
 function getYamlCfg(file, isSess){
@@ -59,52 +60,13 @@ const cfg = {
 let session = getYamlCfg(sessCfgFile, true);
 
 // langs
-const dubLangs = {
-    'English':    'eng',
-    'Spanish':    'spa',
-    'French':     'fre',
-    'Portuguese': 'por',
-    'Arabic':     'ara',
-    'Italian':    'ita',
-    'German':     'ger',
-    'Russian':    'rus',
-    'Turkish':    'tur',
-    'Japanese':   'jpn',
-    '':           'unk',
-};
-// dub langs
-const isoLangs = [];
-for(let lk of Object.keys(dubLangs)){
-    isoLangs.push(dubLangs[lk]);
-}
+const dubLangs  = langsData.dubLangs;
+const isoLangs  = langsData.isoLangs;
+const langCodes = langsData.langCodes;
+
 // dubRegex
 const dubRegex =
     new RegExp(`\\((${Object.keys(dubLangs).join('|')})(?: Dub)?\\)$`);
-// subs codes
-const langCodes = {
-    'en - us': ['eng','English (US)'],
-    'en - gb': ['eng','English (UK)'],
-    'es - la': ['spa','Spanish (Latin American)'],
-    'es - es': ['spa','Spanish'],
-    'fr - fr': ['fre','French'],
-    'pt - br': ['por','Portuguese (Brazilian)'],
-    'pt - pt': ['por','Portuguese'],
-    'ar - me': ['ara','Arabic'], // Mesopotamian Arabic?
-    'it - it': ['ita','Italian'],
-    'de - de': ['ger','German'],
-    'ru - ru': ['rus','Russian'],
-    'tr - tr': ['tur','Turkish'],
-    '':        ['unk','Unknown']
-};
-// subs filter codes
-const subsFilterLangs = ['all','none'];
-for(let lc of Object.keys(langCodes)){
-    lc = lc.match(/(\w{2}) - (\w{2})/);
-    if(lc){
-        lc = `${lc[1]}${lc[2].toUpperCase()}`;
-        subsFilterLangs.push(lc);
-    }
-}
 
 // args
 let argv = yargs
@@ -151,7 +113,7 @@ let argv = yargs
     .default('oldsubs', cfg.cli.oldSubs || false)
     // dl subs
     .describe('dlsubs','Download subtitles by language tag')
-    .choices('dlsubs', subsFilterLangs)
+    .choices('dlsubs', langsData.subsLangsFilter)
     .default('dlsubs', (cfg.cli.dlSubs || 'all'))
     // skip
     .describe('skipdl','Skip downloading video (for downloading subtitles only)')
@@ -996,19 +958,20 @@ async function getMedia(mMeta){
                             if(subsXmlApi.ok){
                                 let subXml      = crunchySubs.decrypt(null, subsXmlApi.res.body);
                                 if(subXml.ok){
-                                    let subsParsed = crunchySubs.parse(subsListXml[s].attribs,subXml.data);
-                                    let sLang = subsParsed.langCode.match(/(\w{2}) - (\w{2})/);
-                                    sLang = `${sLang[1]}${sLang[2].toUpperCase()}`;
-                                    subsParsed.langStr  = langCodes[subsParsed.langCode][1];
-                                    subsParsed.langCode = langCodes[subsParsed.langCode][0];
-                                    let subsExtFile = [
-                                        subsParsed.id,
-                                        subsParsed.langCode,
-                                        subsParsed.langStr
-                                    ].join(' ');
-                                    subsParsed.file = `${fnOutput}.${subsExtFile}.ass`;
+                                    let subsParsed = crunchySubs.parse(subsListXml[s].attribs, subXml.data);
+                                    let subsLangData = langsData.codeToData(subsParsed.langCode);
+                                    subsParsed.langCode    = subsLangData.code;
+                                    subsParsed.langExtCode = subsLangData.extCode;
+                                    subsParsed.langLowCode = subsLangData.lowCode;
+                                    subsParsed.langStr  = subsLangData.local;
+                                    subsParsed.file = langsData.subsLang2file({
+                                        file: fnOutput, 
+                                        id: subsParsed.id,
+                                        code: subsLangData.code,
+                                        local: subsLangData.local,
+                                    });
                                     if(argv.dlsubs.includes('all') || argv.dlsubs.includes(sLang)){
-                                        fs.writeFileSync(path.join(cfg.dir.content, subsParsed.file),subsParsed.src);
+                                        fs.writeFileSync(path.join(cfg.dir.content, subsParsed.file), subsParsed.src);
                                         delete subsParsed.src;
                                         console.log(`[INFO] Downloaded: ${subsParsed.file}`);
                                         sxList.push(subsParsed);
@@ -1027,7 +990,7 @@ async function getMedia(mMeta){
                             }
                         }
                     }
-                    if(sxList.length<1){
+                    if(sxList.length < 1){
                         console.log('[WARN] Subs not found!');
                     }
                 }
@@ -1040,29 +1003,28 @@ async function getMedia(mMeta){
             }
         }
         else if(mediaData.subtitles.length > 0){
-            let dledSubsList = [];
             for(let s of mediaData.subtitles){
                 let subsParsed = {};
                 subsParsed.id = s.url.match(/_(\d+)\.txt\?/)[1];
-                subsParsed.langCode = s.language.match(/(\w{2})(\w{2})/);
-                subsParsed.langCode = `${subsParsed.langCode[1]} - ${subsParsed.langCode[2]}`.toLowerCase();
-                subsParsed.langStr  = langCodes[subsParsed.langCode][1];
-                subsParsed.langCode = langCodes[subsParsed.langCode][0];
-                let subsExtFile = [
-                    subsParsed.id,
-                    subsParsed.langCode,
-                    subsParsed.langStr
-                ].join(' ');
-                subsParsed.file = `${fnOutput}.${subsExtFile}.ass`;
+                let subsLangData = langsData.codeToData(s.language);
+                subsParsed.langCode    = subsLangData.code;
+                subsParsed.langExtCode = subsLangData.extCode;
+                subsParsed.langLowCode = subsLangData.lowCode;
+                subsParsed.langStr  = subsLangData.local;
+                subsParsed.file = langsData.subsLang2file({
+                    file: fnOutput, 
+                    id: subsParsed.id,
+                    code: subsLangData.code,
+                    local: subsLangData.local,
+                });
                 if(argv.dlsubs.includes('all') || argv.dlsubs.includes(s.language)){
-                    let subsAssApi = await getData(s.url,{useProxy:(argv.ssp?false:true)});
+                    let subsAssApi = await getData(s.url, {useProxy: (argv.ssp?false:true)});
                     if(subsAssApi.ok){
-                        subsParsed.fonts = fontsData.assFonts(subsAssApi.res.body);
-                        subsParsed.title = subsAssApi.res.body.split('\r\n')[1].replace(/^Title: /,'');
-                        subsAssApi.res.body = '\ufeff' + subsAssApi.res.body;
-                        fs.writeFileSync(path.join(cfg.dir.content, subsParsed.file), subsAssApi.res.body);
+                        let sBody = '\ufeff' + subsAssApi.res.body;
+                        subsParsed.fonts = fontsData.assFonts(sBody);
+                        subsParsed.title = sBody.split('\r\n')[1].replace(/^Title: /, '');
+                        fs.writeFileSync(path.join(cfg.dir.content, subsParsed.file), sBody);
                         console.log(`[INFO] Downloaded: ${subsParsed.file}`);
-                        dledSubsList.push(s.language);
                         sxList.push(subsParsed);
                     }
                     else{
@@ -1073,13 +1035,15 @@ async function getMedia(mMeta){
                     console.log(`[INFO] Download skipped: ${subsParsed.file}`);
                 }
             }
-            if(dledSubsList.length>0){
-                console.log('[INFO] Subtitles:', dledSubsList.join(', '));
-            }
         }
     }
     else{
         console.log('[INFO] Subtitles downloading skipped');
+    }
+    
+    // sort and display subtitles
+    if(sxList.length > 0){
+        sxList = langsData.sortSubtitles(sxList);
     }
     
     // go to muxing
