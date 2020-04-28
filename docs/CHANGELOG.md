@@ -1,7 +1,7 @@
 ## Change Log
 
 
-### 4.16.1 (2020/03/28)
+### 4.16.1 (2020/04/28)
 - Sort subtitles before muxing
 
 Known issues:
