@@ -23,13 +23,13 @@
     "main": "crunchy.js",
     "dependencies": {
         "cheerio": "^1.0.0-rc.3",
-        "got": "^10.7.0",
-        "hls-download": "^2.3.2",
-        "lookpath": "^1.0.5",
+        "got": "^11.0.2",
+        "hls-download": "^2.3.3",
+        "lookpath": "^1.0.6",
         "m3u8-parsed": "^1.2.0",
         "proxy-agent": "^3.1.1",
         "sei-helper": "^3.3.0",
-        "yaml": "^1.8.3",
+        "yaml": "^1.9.2",
         "yargs": "^15.3.1"
     },
     "devDependencies": {
