@@ -1,11 +1,11 @@
-filenameTemplate: "[{rel_group}] {title} - {ep_num} [{suffix}]"
-releaseGroup: CR
+filenameTemplate: "[{rel_group}] {title} - {ep_num} [Multi-Subs] [{suffix}]"
+releaseGroup: ok
 epNumLength: 2
 fileSuffix: SIZEp
-videoQuality: 720p
+videoQuality: max
 dubLanguage: jpn
 mp4mux: false
-muxSubs: false
+muxSubs: true
 noCleanUp: false
 nServer: 1
 oldSubs: false
