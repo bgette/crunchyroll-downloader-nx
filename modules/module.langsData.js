@@ -1,20 +1,43 @@
 // avaible langs
 const langCodes = {
-    'en - us': { code: 'eng', lang: 'English',    local: 'English (US)'             },
-    'en - gb': { code: 'eng', lang: 'English',    local: 'English (UK)'             },
-    'es - la': { code: 'spa', lang: 'Spanish',    local: 'Spanish (Latin American)' },
-    'es - es': { code: 'spa', lang: 'Spanish',                                      },
-    'fr - fr': { code: 'fre', lang: 'French',                                       },
-    'pt - br': { code: 'por', lang: 'Portuguese', local: 'Portuguese (Brazilian)'   },
-    'pt - pt': { code: 'por', lang: 'Portuguese',                                   },
-    'ar - me': { code: 'ara', lang: 'Arabic',                                       }, // Arabic (Mesopotamian)?
-    'it - it': { code: 'ita', lang: 'Italian',                                      },
-    'de - de': { code: 'ger', lang: 'German',                                       },
-    'ru - ru': { code: 'rus', lang: 'Russian',                                      },
-    'tr - tr': { code: 'tur', lang: 'Turkish',                                      },
-    'jp - jp': { code: 'jpn', lang: 'Japanese',                                     },
-    '':        { code: 'unk', lang: 'Unknown',                                      },
+    'enUS': { code: 'eng', lang: 'English',    local: 'English (US)'             },
+    'enGB': { code: 'eng', lang: 'English',    local: 'English (UK)'             },
+    'esLA': { code: 'spa', lang: 'Spanish',    local: 'Spanish (Latin American)' },
+    'esES': { code: 'spa', lang: 'Spanish',                                      },
+    'frFR': { code: 'fre', lang: 'French',                                       },
+    'ptBR': { code: 'por', lang: 'Portuguese', local: 'Portuguese (Brazilian)'   },
+    'ptPT': { code: 'por', lang: 'Portuguese',                                   },
+    'arME': { code: 'ara', lang: 'Arabic',                                       }, // Arabic (Mesopotamian)?
+    'itIT': { code: 'ita', lang: 'Italian',                                      },
+    'deDE': { code: 'ger', lang: 'German',                                       },
+    'ruRU': { code: 'rus', lang: 'Russian',                                      },
+    'trTR': { code: 'tur', lang: 'Turkish',                                      },
+    'jaJP': { code: 'jpn', lang: 'Japanese',                                     },
 };
+
+// add local
+(() =>{
+    for(let lc of Object.keys(langCodes)){
+        if(!langCodes[lc].local){
+            langCodes[lc].local = langCodes[lc].lang;
+        }
+    }
+})();
+
+// construnct lang filter
+const subsLangsFilter = (() => {
+    const subsParam = ['all', 'none'];
+    return [...subsParam, ...Object.keys(langCodes)];
+})();
+
+// construnct iso langs const
+const isoLangs = (() => {
+    const isoDb = [];
+    for(const lk of Object.keys(langCodes)){
+        isoDb.push(langCodes[lk].code);
+    }
+    return [...new Set(isoDb)];
+})();
 
 // construnct dub langs const
 const dubLangs = (() => {
@@ -28,56 +51,42 @@ const dubLangs = (() => {
     return dubDb;
 })();
 
-// construnct iso langs const
-const isoLangs = (() => {
-    const isoDb = [];
-    for(const lk of Object.keys(dubLangs)){
-        isoDb.push(dubLangs[lk]);
-    }
-    return isoDb;
-})();
+// dub regex
+const dubRegExpStr =
+    `\\((${Object.keys(dubLangs).join('|')})(?: Dub)?\\)$`;
+const dubRegExp = new RegExp(dubRegExpStr);
 
-// construnct lang filter
-const subsLangsFilter = (() => {
-    const subsLangs = ['all', 'none'];
-    for(let lc of Object.keys(langCodes)){
-        lc = lc.match(/(\w{2}) - (\w{2})/);
-        if(lc){
-            lc = `${lc[1]}${lc[2].toUpperCase()}`;
-            subsLangs.push(lc);
+// rss subs lang parser
+const parseRssSubsString = (subs) => {
+    subs = subs.split(',').map((s) => {
+        let sLang = s.match(/(\w{2}) - (\w{2})/);
+        if(sLang){
+            sLang = `${sLang[1]}${sLang[2].toUpperCase()}`;
+            return sLang;
         }
-    }
-    return subsLangs;
-})();
-
-const codeToData = (extCode) => {
-    const mLang = extCode.match(/(\w{2})(\w{2})/);
-    const lowCode = `${mLang[1]} - ${mLang[2]}`.toLowerCase();
-    const lData = langCodes[lowCode];
-    lData.local = lData.local ? lData.local : lData.lang;
-    lData.extCode = extCode;
-    lData.lowCode = lowCode;
-    return lData;
-};
-
-const subsLang2file = (data) => {
-    return `${data.file}.${data.id} ${data.code} ${data.local}.ass`;
-};
+        else{
+            return 'unk';
+        }
+    });
+    return subs.join(', ');
+}
 
 const sortSubtitles = (data) => {
-    const subsIndex = {};
+    const idx = {};
     for(const l of Object.keys(langCodes)){
-        if(l == ''){ continue; }
-        subsIndex[l] = Object.keys(subsIndex).length;
+        idx[l] = Object.keys(idx).length + 1;
     }
     data.sort((a, b) => {
-        const ia = subsIndex[a.langLowCode];
-        const ib = subsIndex[b.langLowCode]
+        const ia = idx[a.language] ? idx[a.language] : 50;
+        const ib = idx[b.language] ? idx[b.language] : 50;
         return ia - ib;
     });
-    subsStr(data);
     return data;
 };
+
+const subsFile = (fnOutput, seq, lc) => {
+    return `${fnOutput}.${(parseInt(seq)+1).toString().padStart(2, '0')} ${lc.code} ${lc.local}.ass`;
+}
 
 const subsStr = (data) => {
     const subs = [];
@@ -90,10 +99,12 @@ const subsStr = (data) => {
 // output
 module.exports = {
     langCodes,
-    dubLangs,
-    isoLangs,
     subsLangsFilter,
-    codeToData,
-    subsLang2file,
+    isoLangs,
+    dubLangs,
+    dubRegExp,
+    parseRssSubsString,
     sortSubtitles,
+    subsFile,
+    subsStr,
 };
