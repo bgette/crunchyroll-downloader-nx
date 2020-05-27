@@ -1,10 +1,19 @@
 ## Change Log
 
+### 4.17.0 (2020/05/27)
+- Sort subtitles before muxing
+- Moved language data to separate
+- Detect audio language using stream data
+- Minor improvements
 
-### 4.16.1 (2020/04/28)
+#### Known issues:
+- Proxy not supported
+- Old api for subtitles not supported
+
+### 4.16.1 (2020/03/28)
 - Sort subtitles before muxing
 
-Known issues:
+#### Known issues:
 - Proxy is broken
 - oldsubs cli option is broken
 
@@ -14,7 +23,7 @@ Known issues:
 - Improved dlsubs cli option
 - Custom configs
 
-Known issues:
+#### Known issues:
 - Proxy is broken
 - oldsubs cli option is broken
 
