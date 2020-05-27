@@ -58,42 +58,30 @@ function decrypt(id, data) {
 // parse
 function parse(meta, src){
     // pre default
-    let subsMeta = {
-        id: meta.id,
-        // title: meta.title.replace(/^\[(.*)\] /,''),
-        user: meta.user,
-        isDefault: Boolean(parseInt(meta.default))
-    };
+    let subsMeta = {};
     // parse xml
     let xml = xhtml2js({ src, el: 'subtitle_script', isXml: true }).$;
     // meta update
     subsMeta.title    = xml[0].attribs.title;
-    let langCode      = xml[0].attribs.lang_code.match(/(\w{2})(\w{2})/);
-    langCode          = `${langCode[1]} - ${langCode[2]}`.toLowerCase();
-    subsMeta.langCode = langCode;
-    subsMeta.date     = xml[0].attribs.created;
+    subsMeta.language = xml[0].attribs.lang_code;
     // collect header data
     let headerData = {
         title: subsMeta.title,
-        user: subsMeta.user,
-        resx: xml[0].attribs.play_res_x,
-        resy: xml[0].attribs.play_res_y,
-        wrap:  xml[0].attribs.wrap_style
+        user:  meta.user,
+        resx:  xml[0].attribs.play_res_x,
+        resy:  xml[0].attribs.play_res_y,
+        wrap:  xml[0].attribs.wrap_style,
     };
-    // get header data
-    subsMeta.src   = getASSHeader(headerData);
-    // get styles and fonts
-    let stylesAndFonts = getASSStylesAndFonts(xml.find('styles'));
-    subsMeta.fonts = stylesAndFonts.fonts;
-    subsMeta.src  += stylesAndFonts.styles;
-    // get dialogs
-    subsMeta.src  += getASSDialogs(xml.find('events'));
+    // generate src file
+    subsMeta.src  = getASSHeader(headerData);
+    subsMeta.src += getASSStyles(xml.find('styles'));
+    subsMeta.src += getASSDialogs(xml.find('events'));
     // save subtitle
     return subsMeta;
 }
 function getASSHeader(data){
     let src = [
-        '\ufeff[Script Info]',
+        '[Script Info]',
         `Title: ${data.title}`,
         `Original Script: ${data.user}  [http://www.crunchyroll.com/user/${data.user}]`,
         'Original Translation: ',
@@ -112,7 +100,7 @@ function getASSHeader(data){
     ];
     return src.join('\r\n');
 }
-function getASSStylesAndFonts(data){
+function getASSStyles(data){
     let src = [
         '',
         '[V4+ Styles]',
@@ -120,11 +108,9 @@ function getASSStylesAndFonts(data){
         + 'Bold,Italic,Underline,Strikeout,ScaleX,ScaleY,Spacing,Angle,'
         + 'BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding' )
     ];
-    let fontsList = [];
     let styleList = data.find('style');
-    for(let i=0;i<styleList.length;i++){
+    for(let i=0; i < styleList.length; i++){
         let s = styleList[i].attribs;
-        fontsList.push(s.font_name);
         let x = 'Style: ' + [
             s.name,
             s.font_name,
@@ -153,10 +139,7 @@ function getASSStylesAndFonts(data){
         src.push(x);
     }
     src.push('');
-    return {
-        styles: src.join('\r\n'),
-        fonts: [...new Set(fontsList)],
-    };
+    return src.join('\r\n');
 }
 function getASSDialogs(data){
     let src = [

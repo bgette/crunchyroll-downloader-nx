@@ -1,0 +1,60 @@
+name: Release Build Win64
+
+on:
+  release:
+    types: [ created ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v1.4.2
+        with:
+          node-version: 12.15.0
+
+      - name: Install Node modules
+        run: npm install
+
+      - name: Make build
+        run: npm run build-win64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-win64
+          path: _builds/**/*
+
+  upload_release:
+    runs-on: ubuntu-latest
+    needs: [ build ]
+
+    steps:
+      - name: Collect tag name
+        run: test -n "${GITHUB_REF}" && echo "::set-env name=GIT_REV_TAG::${GITHUB_REF##refs/tags/}" || exit 1
+
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: build-win64
+          path: build-win64
+
+      - name: Prepare release zip
+        run: |
+          cd build-win64 &&
+          zip -r ../build-win64.zip . &&
+          cd ..
+
+      - name: Upload release zip
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./build-win64.zip
+          asset_name: crunchuroll-downloader-nx-win64-${{ env.GIT_REV_TAG }}.zip
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

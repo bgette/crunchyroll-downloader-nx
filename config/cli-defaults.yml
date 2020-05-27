@@ -8,6 +8,7 @@ mp4mux: false
 muxSubs: false
 noCleanUp: false
 nServer: 1
+kStream: 1
 oldSubs: false
 dlSubs: all
 proxy: false
