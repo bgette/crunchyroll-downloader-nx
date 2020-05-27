@@ -54,7 +54,7 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./build-win64.zip
-          asset_name: crunchuroll-downloader-nx-win64-${{ env.GIT_REV_TAG }}.zip
+          asset_name: crunchuroll-downloader-nx-${{ env.GIT_REV_TAG }}-win64.zip
           asset_content_type: application/zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
