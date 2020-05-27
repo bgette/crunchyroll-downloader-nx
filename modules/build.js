@@ -44,28 +44,11 @@ const nodeVer = '-12.15.0';
     };
     console.log(`[Build] Build configuration: ${buildFull}`);
     await compile(buildConfig);
-    if(fs.existsSync('./bin/ffmpeg')){
-        // fs.copySync('./bin/ffmpeg', `${buildDir}/bin/ffmpeg`);
-    }
-    if(fs.existsSync('./bin/ffmpeg.exe')){
-        // fs.copySync('./bin/ffmpeg.exe', `${buildDir}/bin/ffmpeg.exe`);
-    }
-    if(fs.existsSync('./bin/mkvmerge')){
-        // fs.copySync('./bin/mkvmerge', `${buildDir}/bin/mkvmerge`);
-    }
-    if(fs.existsSync('./bin/mkvmerge.exe')){
-        // fs.copySync('./bin/mkvmerge.exe', `${buildDir}/bin/mkvmerge.exe`);
-    }
     fs.copySync('./config/bin-path.yml', `${buildDir}/config/bin-path.yml`);
     fs.copySync('./config/cli-defaults.yml', `${buildDir}/config/cli-defaults.yml`);
     fs.copySync('./config/dir-path.yml', `${buildDir}/config/dir-path.yml`);
-    fs.copySync('./cmd-here.bat', `${buildDir}/cmd-here.bat`);
     fs.copySync('./docs/', `${buildDir}/docs/`);
     fs.copySync('./LICENSE.md', `${buildDir}/docs/LICENSE.md`);
-    if(fs.existsSync(`${buildsDir}/${buildFull}.7z`)){
-        fs.removeSync(`${buildsDir}/${buildFull}.7z`);
-    }
-    require('child_process').execSync(`7z a -t7z "${buildsDir}/${buildFull}.7z" "${buildDir}"`,{stdio:[0,1,2]});
 }());
 
 function getTarget(bt){
