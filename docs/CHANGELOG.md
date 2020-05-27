@@ -13,7 +13,7 @@
 ### 4.16.1 (2020/03/28)
 - Sort subtitles before muxing
 
-Known issues:
+#### Known issues:
 - Proxy is broken
 - oldsubs cli option is broken
 
@@ -23,7 +23,7 @@ Known issues:
 - Improved dlsubs cli option
 - Custom configs
 
-Known issues:
+#### Known issues:
 - Proxy is broken
 - oldsubs cli option is broken
 
