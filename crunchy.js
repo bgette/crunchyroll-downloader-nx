@@ -3,7 +3,6 @@
 // build-in
 const path = require('path');
 const fs = require('fs');
-const url = require('url');
 
 // package program
 const packageJson = require('./package.json');
@@ -23,6 +22,7 @@ const yargs = require('yargs');
 const shlp = require('sei-helper');
 const got = require('got').extend(ua);
 const yaml = require('yaml');
+const chio = require('cheerio');
 const xhtml2js = shlp.xhtml2js;
 
 // m3u8 and subs
@@ -59,15 +59,6 @@ const cfg = {
 // custom
 let session = getYamlCfg(sessCfgFile, true);
 
-// langs
-const dubLangs  = langsData.dubLangs;
-const isoLangs  = langsData.isoLangs;
-const langCodes = langsData.langCodes;
-
-// dubRegex
-const dubRegex =
-    new RegExp(`\\((${Object.keys(dubLangs).join('|')})(?: Dub)?\\)$`);
-
 // args
 let argv = yargs
     // main
@@ -92,7 +83,7 @@ let argv = yargs
     .default('q',(cfg.cli.videoQuality || '720p'))
     // set dub
     .describe('dub','Set audio language by language code (sometimes not detect correctly)')
-    .choices('dub', [...new Set(isoLangs)])
+    .choices('dub', langsData.isoLangs)
     .default('dub', (cfg.cli.dubLanguage || 'jpn'))
     // server
     .describe('kstream','Select specific stream')
@@ -163,6 +154,7 @@ let argv = yargs
 // fn variables
 let audDubT  = '',
     audDubE  = '',
+    audDubP  = '',
     fnTitle  = '',
     fnEpNum  = '',
     fnSuffix = '',
@@ -193,26 +185,38 @@ const api = {
     // ${domain}/{GROUP_URL}/videos,
 };
 
-// select mode
-if(argv.auth){
-    doAuth();
-}
-else if(argv.dlfonts){
-    getFonts();
-}
-else if(argv.search && argv.search.length > 2){
-    doSearch();
-}
-else if(argv.search2 && argv.search2.length > 2){
-    doSearch2();
-}
-else if(argv.s && !isNaN(parseInt(argv.s,10)) && parseInt(argv.s,10) > 0){
-    getShowById();
-}
-else{
-    yargs.showHelp();
-    process.exit();
-}
+// set usable cookies
+const usefulCookies = {
+    auth: [ 
+        'etp_rt',
+        'c_visitor',
+    ],
+    sess: [ 
+        'session_id',
+    ],
+};
+
+(async () => {
+    // select mode
+    if(argv.auth){
+        await doAuth();
+    }
+    else if(argv.dlfonts){
+        await getFonts();
+    }
+    else if(argv.search && argv.search.length > 2){
+        await doSearch();
+    }
+    else if(argv.search2 && argv.search2.length > 2){
+        await doSearch2();
+    }
+    else if(argv.s && !isNaN(parseInt(argv.s,10)) && parseInt(argv.s,10) > 0){
+        await getShowById();
+    }
+    else{
+        yargs.showHelp();
+    }
+})();
 
 // auth method
 async function doAuth(){
@@ -441,8 +445,8 @@ async function getShowById(){
     );
     const isSimul   = epListXML.find('crunchyroll\\:simulcast').length > 0 ? true : false;
     // if dubbed title
-    if(showTitle.match(dubRegex)){
-        audDubT = dubLangs[showTitle.match(dubRegex)[1]];
+    if(showTitle.match(langsData.dubRegExp)){
+        audDubT = langsData.dubLangs[showTitle.match(langsData.dubRegExp)[1]];
         console.log(`[INFO] audio language code detected, setted to ${audDubT} for this title`);
     }
     // display title
@@ -509,7 +513,7 @@ async function getShowById(){
         console.log(`   - FreePubDate: ${dateStrFree}`);
         // subtitles
         if(subsArr){
-            console.log(`   - Subtitles: ${parseSubsString(subsArr)}`);
+            console.log(`   - Subtitles: ${langsData.parseRssSubsString(subsArr)}`);
         }
     });
     
@@ -604,32 +608,43 @@ async function getShowById(){
     }
 }
 
-function parseSubsString(subs){
-    subs = subs.split(',').map(s=>{
-        let sLang = s.match(/(\w{2}) - (\w{2})/);
-        sLang = `${sLang[1]}${sLang[2].toUpperCase()}`;
-        if ( !langCodes[s] ) {
-            console.error('   - [ERROR] Language code for "%s" not found.', sLang);
-        }
-        return sLang;
-    });
-    return subs.join(', ');
-}
-
 async function getMedia(mMeta){
     
     console.log(`Requesting: [${mMeta.m}] ${mMeta.t} - ${mMeta.e} - ${mMeta.te}`);
+    
+    const mediaPage = await getData(`${api.media_page}${mMeta.m}`,{useProxy:true});
+    if(!mediaPage.ok){
+        console.log('[ERROR] Failed to get video page!');
+        return;
+    }
+    
     audDubE = '';
-    if(audDubT == '' && mMeta.te.match(dubRegex)){
-        audDubE = dubLangs[mMeta.te.match(dubRegex)[1]];
+    if(audDubT == '' && mMeta.te.match(langsData.dubRegExp)){
+        audDubE = langsData.dubLangs[mMeta.te.match(langsData.dubRegExp)[1]];
         console.log(`[INFO] audio language code detected, setted to ${audDubE} for this episode`);
     }
-    const mediaPage = await getData(`${api.media_page}${mMeta.m}`,{useProxy:true});
-    if(!mediaPage.ok){ return; }
     
-    let redirs   = mediaPage.res.redirectUrls;
+    const contextData = mediaPage.res.body.match(/({"@context":.*)(<\/script>)/);
+    const eligibleRegion = JSON.parse(contextData[1]).potentialAction
+        .actionAccessibilityRequirement.eligibleRegion;
+    
+    const vHtml = chio.load(mediaPage.res.body);
+    const ccEl = vHtml('#footer_country_flag');
+    
+    const ccLocUserArr = ccEl.attr('src').split('/');
+    const ccLocUser = ccLocUserArr[ccLocUserArr.length-1].split('.')[0].toUpperCase();
+    console.log('[INFO] Your region:', ccLocUser, ccEl.attr('alt'));
+    
+    const userDetect = mediaPage.res.body.match(/\$\.extend\(traits, (.*)\);/);
+    const curUser = userDetect ? JSON.parse(userDetect[1]) : {"username": "anonimous"};
+    console.log('[INFO] Your account:', curUser.username, '\n');
+    
+    const availDetect = eligibleRegion.filter((r)=>{ return r.name == ccLocUser; });
+    const isAvailVideo = availDetect.length > 0 ? true : false;
+    
+    // page msgs
     let msgItems = mediaPage.res.body.match(/Page.messaging_box_controller.addItems\((.*)\);/);
-    if(msgItems){
+    if(msgItems && argv.pagemsgs){
         msgItems =  JSON.parse(msgItems[1]);
         let msgItemsArr = [];
         console.log('[INFO] PAGE MSGs:');
@@ -639,14 +654,15 @@ async function getMedia(mMeta){
         msgItemsArr = [...new Set(msgItemsArr)];
         console.log(msgItemsArr.join('\n'));
     }
-    if(redirs && redirs[redirs.length-1] == `${domain}/`){
-        console.log('[ERROR] Sorry, this video is not available in your region due to licensing restrictions.\n');
-        return;
-    }
+    // --
     
     let mediaData = mediaPage.res.body.match(/vilos.config.media = \{(.*)\};/);
-    if(!mediaData && !argv.oldsubs){
-        console.log('[ERROR] CAN\'T FETCH VIDEO INFO / PREMIUM LOCKED FOR YOUR REGION!');
+    if(!mediaData && !argv.oldsubs && !isAvailVideo){
+        console.log('[ERROR] VIDEO NOT AVAILABLE FOR YOUR REGION!');
+        return;
+    }
+    else if(!mediaData && !argv.oldsubs){
+        console.log('[ERROR] CAN\'T DETECT VIDEO INFO / PREMIUM LOCKED FOR YOUR REGION?');
         return;
     }
     else if(!mediaData){
@@ -656,7 +672,7 @@ async function getMedia(mMeta){
         mediaData = mediaData[1];
         mediaData = JSON.parse(`{${mediaData}}`);
         if(argv.debug){
-            console.log('[debug]',mediaData);
+            console.log('[DEBUG]', mediaData);
         }
     }
     
@@ -664,6 +680,10 @@ async function getMedia(mMeta){
     let metaEpNum = mediaData ? mediaData.metadata.episode_number : epNum.replace(/^E/,'');
     if(metaEpNum != '' && metaEpNum !== null){
         epNum = metaEpNum.match(/^\d+$/) ? metaEpNum.padStart(argv.el,'0') : metaEpNum;
+    }
+    
+    if(typeof argv.q == 'object' && argv.q.length > 1){
+        argv.q = argv.q[argv.q.length-1];
     }
     
     fnTitle = argv.t ? argv.t : mMeta.t;
@@ -683,7 +703,7 @@ async function getMedia(mMeta){
             isClip = true;
             let parseCfg    = new URL(videoSrcStr[1]).searchParams;
             let parseCfgUrl = parseCfg.get('config_url') + '&current_page=' + domain;
-            let streamData = await getData(parseCfgUrl,{useProxy:(argv.ssp?false:true)});
+            let streamData = await getData(parseCfgUrl,{useProxy: argv.ssp});
             if(streamData.ok){
                 let videoDataBody = streamData.res.body.replace(/\n/g,'').replace(/ +/g,' ');
                 let xmlMediaId    = videoDataBody.match(/<media_id>(\d+)<\/media_id>/);
@@ -751,8 +771,15 @@ async function getMedia(mMeta){
         hlsStream = '';
     }
     
+    // reset playlist
+    audDubP = '';
+    
     // download stream
-    if(hlsStream == '' && !isClip){
+    if(!isAvailVideo){
+        console.log('[ERROR] No available full raw stream! Video not available for your region!');
+        argv.skipmux = true;
+    }
+    else if(hlsStream == '' && !isClip){
         console.log('[ERROR] No available full raw stream! Session expired?');
         argv.skipmux = true;
     }
@@ -763,9 +790,20 @@ async function getMedia(mMeta){
     else{
         // get
         console.log('[INFO] Downloading video...');
-        streamKey = streamKey != '' ? `(${streamKey})` : '';
-        console.log('[INFO] Playlist URL:',(argv.ssu?hlsStream:''),(streamKey));
-        let streamPlaylist = await getData(hlsStream,{useProxy:(argv.ssp?false:true)});
+        let streamKeyStr = streamKey != '' ? `(${streamKey})` : '';
+        let streamUrlTxt = argv.ssu ? hlsStream : '';
+        // check lng
+        let streamDubLang = typeof streamKey == 'string' ? streamKey.split('/') : '';
+        if(streamDubLang[1] && langsData.langCodes[streamDubLang[1]]){
+            let PlAudioLang = langsData.langCodes[streamDubLang[1]];
+            if(audDubT == '' && audDubE == '' && PlAudioLang.code != argv.dub){
+                audDubP = PlAudioLang.code;
+                console.log(`[INFO] audio language code detected, setted to ${PlAudioLang.lang} for this episode`);
+            }
+        }
+        // request
+        console.log('[INFO] Playlist URL:', streamUrlTxt, streamKeyStr);
+        let streamPlaylist = await getData(hlsStream, {useProxy: argv.ssp});
         if(!streamPlaylist.ok){
             console.log(streamPlaylist);
             console.log('[ERROR] CAN\'T FETCH VIDEO PLAYLISTS!');
@@ -848,7 +886,7 @@ async function getMedia(mMeta){
                 }
                 else{
                     // request
-                    let chunkPage = await getData(videoUrl,{useProxy:(argv.ssp?false:true)});
+                    let chunkPage = await getData(videoUrl,{useProxy: argv.ssp});
                     if(!chunkPage.ok){
                         console.log('[ERROR] CAN\'T FETCH VIDEO PLAYLIST!');
                         argv.skipmux = true;
@@ -907,6 +945,14 @@ async function getMedia(mMeta){
     // oldsubs warning
     if(getOldSubs){
         console.log('[WARN] oldsubs cli option is broken, see issue #2 at github');
+        // argv.oldsubs = false;
+    }
+    
+    // fix max quality for non streams
+    if(argv.q == 'max'){
+        argv.q = '1080p';
+        fnSuffix = argv.suffix.replace('SIZEp',argv.q);
+        fnOutput = fnOutputGen();
     }
     
     // download subs
@@ -914,7 +960,7 @@ async function getMedia(mMeta){
     if(!argv.skipsubs && argv.dlsubs != 'none'){
         console.log('[INFO] Downloading subtitles...');
         if(!getOldSubs && mediaData.subtitles.length < 1){
-            console.log('[WARN] Can\'t find urls for subtitles! If you downloading subs version, try use oldsubs cli option');
+            console.log('[WARN] Can\'t find urls for subtitles!');
         }
         if(getOldSubs){
             let mediaIdSubs = mMeta.m;
@@ -950,44 +996,53 @@ async function getMedia(mMeta){
                         parse: true,
                     }).data.children;
                     // subsDecrypt
-                    for(let s=0; s<subsListXml.length; s++){
-                        if(subsListXml[s].tagName == 'subtitle'){
-                            let subsId = subsListXml[s].attribs.id;
-                            let subsTt = subsListXml[s].attribs.title;
-                            let subsXmlApi = await getData(`${api.subs_file}${subsId}`,{useProxy:true});
+                    let oldSubsData = [];
+                    for(let s of subsListXml){
+                        if(s.tagName == 'subtitle'){
+                            let subsId = s.attribs.id;
+                            let subsPreTitle = s.attribs.title;
+                            let subsXmlApi = await getData(`${api.subs_file}${subsId}`, {useProxy: argv.ssp});
                             if(subsXmlApi.ok){
                                 let subXml      = crunchySubs.decrypt(null, subsXmlApi.res.body);
                                 if(subXml.ok){
-                                    let subsParsed = crunchySubs.parse(subsListXml[s].attribs, subXml.data);
-                                    let subsLangData = langsData.codeToData(subsParsed.langCode);
-                                    subsParsed.langCode    = subsLangData.code;
-                                    subsParsed.langExtCode = subsLangData.extCode;
-                                    subsParsed.langLowCode = subsLangData.lowCode;
-                                    subsParsed.langStr  = subsLangData.local;
-                                    subsParsed.file = langsData.subsLang2file({
-                                        file: fnOutput, 
-                                        id: subsParsed.id,
-                                        code: subsLangData.code,
-                                        local: subsLangData.local,
-                                    });
-                                    if(argv.dlsubs.includes('all') || argv.dlsubs.includes(sLang)){
-                                        fs.writeFileSync(path.join(cfg.dir.content, subsParsed.file), subsParsed.src);
-                                        delete subsParsed.src;
-                                        console.log(`[INFO] Downloaded: ${subsParsed.file}`);
-                                        sxList.push(subsParsed);
+                                    let sxData = {};
+                                    let sx = crunchySubs.parse(s.attribs, subXml.data);
+                                    sxData.cl = langsData.langCodes[sx.language];
+                                    sxData.langExtCode = sx.language;
+                                    if(argv.dlsubs.includes('all') || argv.dlsubs.includes(sx.language)){
+                                        console.log(`[INFO] Subtitle downloaded: #${subsId} ${subsPreTitle}`);
+                                        sxData.src = sx.src;
+                                        oldSubsData.push(sxData);
                                     }
                                     else{
-                                        console.log(`[INFO] Download skipped: ${subsParsed.file}`);
+                                        console.log(`[INFO] Subtitle download skipped: #${subsId} ${subsPreTitle}`);
                                     }
                                 }
                                 else{
-                                    console.log(`[WARN] Failed decode subtitles #${subsId} ${subsTt}`);
+                                    console.log(`[WARN] Failed decode subtitle: #${subsId} ${subsPreTitle}`);
                                     console.log(subXml.data);
                                 }
                             }
                             else{
-                                console.log(`[WARN] Failed to download subtitles #${subsId} ${subsTt}`);
+                                console.log(`[WARN] Failed to download subtitle: #${subsId} ${subsPreTitle}`);
                             }
+                        }
+                    }
+                    if(oldSubsData.length > 0){
+                        let oldSubsData = langsData.sortSubtitles(oldSubsData);
+                        for(let si in oldSubsData){
+                            let s = oldSubsData[si];
+                            let sxData = {};
+                            sxData.file = langsData.subsFile(fnOutput, si, s.cl);
+                            sxData.langExtCode = s.langExtCode;
+                            sxData.langCode = s.cl.code;
+                            sxData.langStr = cl.local;
+                            let sBody = '\ufeff' + s.src;
+                            sxData.title = s.title;
+                            sxData.fonts = fontsData.assFonts(sBody);
+                            fs.writeFileSync(path.join(cfg.dir.content, sxData.file), sBody);
+                            console.log(`[INFO] Subtitle saved: ${sxData.file}`);
+                            sxList.push(sxData);
                         }
                     }
                     if(sxList.length < 1){
@@ -1003,47 +1058,37 @@ async function getMedia(mMeta){
             }
         }
         else if(mediaData.subtitles.length > 0){
-            for(let s of mediaData.subtitles){
-                let subsParsed = {};
-                subsParsed.id = s.url.match(/_(\d+)\.txt\?/)[1];
-                let subsLangData = langsData.codeToData(s.language);
-                subsParsed.langCode    = subsLangData.code;
-                subsParsed.langExtCode = subsLangData.extCode;
-                subsParsed.langLowCode = subsLangData.lowCode;
-                subsParsed.langStr  = subsLangData.local;
-                subsParsed.file = langsData.subsLang2file({
-                    file: fnOutput, 
-                    id: subsParsed.id,
-                    code: subsLangData.code,
-                    local: subsLangData.local,
-                });
+            mediaData.subtitles = langsData.sortSubtitles(mediaData.subtitles);
+            for(let si in mediaData.subtitles){
+                let s = mediaData.subtitles[si];
+                let cl = langsData.langCodes[s.language];
+                let sxData = {};
+                sxData.file = langsData.subsFile(fnOutput, si, cl);
+                sxData.langExtCode = s.language;
+                sxData.langCode = cl.code;
+                sxData.langStr = cl.local;
                 if(argv.dlsubs.includes('all') || argv.dlsubs.includes(s.language)){
-                    let subsAssApi = await getData(s.url, {useProxy: (argv.ssp?false:true)});
+                    let subsAssApi = await getData(s.url, {useProxy:  argv.ssp});
                     if(subsAssApi.ok){
                         let sBody = '\ufeff' + subsAssApi.res.body;
-                        subsParsed.fonts = fontsData.assFonts(sBody);
-                        subsParsed.title = sBody.split('\r\n')[1].replace(/^Title: /, '');
-                        fs.writeFileSync(path.join(cfg.dir.content, subsParsed.file), sBody);
-                        console.log(`[INFO] Downloaded: ${subsParsed.file}`);
-                        sxList.push(subsParsed);
+                        sxData.title = sBody.split('\r\n')[1].replace(/^Title: /, '');
+                        sxData.fonts = fontsData.assFonts(sBody);
+                        fs.writeFileSync(path.join(cfg.dir.content, sxData.file), sBody);
+                        console.log(`[INFO] Subtitle downloaded: ${sxData.file}`);
+                        sxList.push(sxData);
                     }
                     else{
-                        console.log(`[WARN] Download failed: ${subsParsed.file}`);
+                        console.log(`[WARN] Failed to download subtitle: ${sxData.file}`);
                     }
                 }
-                else{
-                    console.log(`[INFO] Download skipped: ${subsParsed.file}`);
-                }
+            }
+            if(sxList.length > 0){
+                langsData.subsStr(sxList);
             }
         }
     }
     else{
         console.log('[INFO] Subtitles downloading skipped');
-    }
-    
-    // sort and display subtitles
-    if(sxList.length > 0){
-        sxList = langsData.sortSubtitles(sxList);
     }
     
     // go to muxing
@@ -1068,8 +1113,20 @@ async function muxStreams(){
         return;
     }
     // fix variables
-    let audioDub = audDubT != '' ? audDubT:
-        (audDubE != '' ? audDubE : argv.dub);
+    let audioDub;
+    switch(true) {
+        case (audDubT != ''):
+            audioDub = audDubT;
+            break;
+        case (audDubE != ''):
+            audioDub = audDubE;
+            break;
+        case (audDubP != ''):
+            audioDub = audDubP;
+            break;
+        default:
+            audioDub = argv.dub;
+    }
     const addSubs = argv.mks && sxList.length > 0 ? true : false;
     // ftag
     argv.ftag = argv.ftag ? argv.ftag : argv.a;
@@ -1280,6 +1337,7 @@ async function getData(durl, params){
     }
     // proxy
     if(params.useProxy && argv.proxy){
+        /*
         try{
             const agent = require('proxy-agent');
             let proxyUrl = buildProxyUrl(argv.proxy,argv['proxy-auth']);
@@ -1291,31 +1349,34 @@ async function getData(durl, params){
             console.log('[WARN] Skiping...');
             argv.proxy = false;
         }
+        */
     }
     // if auth
     let cookie = [];
     const loc = new URL(durl);
     if(loc.origin == domain || loc.origin == api.domain){
-        if(checkCookieVal(session.etp_rt)){
-            cookie.push('etp_rt');
+        for(let uCookie of usefulCookies.auth){
+            if(checkCookieVal(session[uCookie])){
+                cookie.push(uCookie);
+            }
         }
-        if(checkCookieVal(session.c_visitor)){
-            cookie.push('c_visitor');
-        }
-        if(checkSessId(session.session_id) && !argv.nosess){
-            cookie.push('session_id');
+        for(let uCookie of usefulCookies.sess){
+            if(checkSessId(session[uCookie]) && !argv.nosess){
+                cookie.push(uCookie);
+            }
         }
         if(!params.skipCookies){
             cookie.push('c_locale');
-            options.headers.Cookie =
-                shlp.cookie.make(Object.assign({c_locale:{value:'enUS'}},session),cookie);
+            options.headers.Cookie = shlp.cookie.make({
+                ...{ c_locale : { value: 'enUS' } },
+                ...session,
+            }, cookie);
         }
     }
-    // fix and debug
+    // debug
     options.hooks = {
         beforeRequest: [
             (options) => {
-                options.url.search = options.url.search.replace(/%7E/g,'~');
                 if(argv.debug){
                     console.log('[DEBUG] GOT OPTIONS:');
                     console.log(options);
@@ -1325,11 +1386,13 @@ async function getData(durl, params){
     };
     // do req
     try {
-        let res = await got(durl, options);
+        let res = await got(durl.toString(), options);
         if(!params.skipCookies && res.headers['set-cookie']){
             setNewCookie(res.headers['set-cookie']);
-            if(session.session_id && argv.nosess){
-                argv.nosess = false;
+            for(let uCookie of usefulCookies.sess){
+                if(session[uCookie] && argv.nosess){
+                    argv.nosess = false;
+                }
             }
         }
         return {
@@ -1356,24 +1419,24 @@ async function getData(durl, params){
 function setNewCookie(setCookie, isAuth){
     let cookieUpdated = [];
     setCookie = shlp.cookie.parse(setCookie);
-    if(isAuth || setCookie.etp_rt){
-        session.etp_rt = setCookie.etp_rt;
-        cookieUpdated.push('etp_rt');
+    for(let uCookie of usefulCookies.auth){
+        if(isAuth || setCookie[uCookie]){
+            session[uCookie] = setCookie[uCookie];
+            cookieUpdated.push(uCookie);
+        }
     }
-    if(isAuth || setCookie.c_visitor){
-        session.c_visitor = setCookie.c_visitor;
-        cookieUpdated.push('c_visitor');
-    }
-    if(
-        isAuth 
-        || argv.nosess && setCookie.session_id 
-        || setCookie.session_id && !checkSessId(session.session_id)
-    ){
-        const sessionExp = 60*60;
-        session.session_id            = setCookie.session_id;
-        session.session_id.expires    = new Date(Date.now() + sessionExp*1000);
-        session.session_id['Max-Age'] = sessionExp.toString();
-        cookieUpdated.push('session_id');
+    for(let uCookie of usefulCookies.sess){
+        if(
+            isAuth 
+            || argv.nosess && setCookie[uCookie]
+            || setCookie[uCookie] && !checkSessId(session[uCookie])
+        ){
+            const sessionExp = 60*60;
+            session[uCookie]            = setCookie[uCookie];
+            session[uCookie].expires    = new Date(Date.now() + sessionExp*1000);
+            session[uCookie]['Max-Age'] = sessionExp.toString();
+            cookieUpdated.push(uCookie);
+        }
     }
     if(cookieUpdated.length > 0){
         session = yaml.stringify(session);
@@ -1399,19 +1462,14 @@ function checkSessId(session_id){
             && typeof session_id.value   == 'string'
         ?  true : false;
 }
-function buildProxyUrl(proxyBaseUrl,proxyAuth){
+function buildProxyUrl(proxyBaseUrl, proxyAuth){
     let proxyCfg = new URL(proxyBaseUrl);
     if(typeof proxyCfg.hostname != 'string' || typeof proxyCfg.port != 'string'){
-        throw new Error();
+        throw new Error('[ERROR] Hostname and port required for proxy!');
     }
     if(proxyAuth && typeof proxyAuth == 'string' && proxyAuth.match(':')){
-        proxyCfg.auth = proxyAuth;
+        proxyCfg.username = proxyAuth.split(':')[0];
+        proxyCfg.password = proxyAuth.split(':')[1];
     }
-    return url.format({
-        protocol: proxyCfg.protocol,
-        slashes: true,
-        auth: proxyCfg.auth,
-        hostname: proxyCfg.hostname,
-        port: proxyCfg.port,
-    });
+    return proxyCfg;
 }
