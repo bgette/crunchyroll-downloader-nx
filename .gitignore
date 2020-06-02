@@ -1,10 +1,10 @@
+
 /bin/ff*
 /bin/mkv*
 /_builds/*
 /crunchy-*
 /node_modules/
 /videos/*.json
-cr.bat
 session.yml
 package-lock.json
 *.user.yml
@@ -20,5 +20,6 @@ package-lock.json
 *.srt
 *.ass
 *.bat
+!cmd-here.bat
 *.7z
 *.zip
