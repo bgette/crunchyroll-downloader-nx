@@ -8,9 +8,9 @@ function generateKeyAux(count, modulo, start){
     // Generate String: $&).6CXzPHw=2N_+isZK
     let res = start;
     for (let i of Array(count).keys()){
-        res.push(res[res.length-1] + res[res.length-2]);
+        res.push(res[i] + res[i+1]);
     }
-    res.splice(0, 2)
+    res.splice(0, 2);
     res = res.map(x => x % modulo + 33);
     res = String.fromCharCode(...res);
     return res;

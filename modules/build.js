@@ -53,7 +53,7 @@ const nodeVer = '-12.15.0';
     if(fs.existsSync(`${buildsDir}/${buildFull}.7z`)){
         fs.removeSync(`${buildsDir}/${buildFull}.7z`);
     }
-    require('child_process').execSync(`7z a -t7z "${buildsDir}/${buildFull}.7z" "${buildDir}"`,{stdio:[0,1,2]})
+    require('child_process').execSync(`7z a -t7z "${buildsDir}/${buildFull}.7z" "${buildDir}"`,{stdio:[0,1,2]});
     console.log('[LOG] Build ready:', `${buildsDir}/${buildFull}.7z`);
 }());
 

@@ -1,6 +1,13 @@
 ## Change Log
 
-### 4.18.3 (2020/05/27)
+### 4.18.4 (2020/06/02)
+- Small fixes
+
+#### Known issues:
+- Proxy not supported
+- Old api for subtitles not supported
+
+### 4.18.3 (2020/06/02)
 - Fix "Error #403"
 
 #### Known issues:

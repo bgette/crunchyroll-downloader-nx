@@ -635,7 +635,7 @@ async function getMedia(mMeta){
     console.log('[INFO] Your region:', ccLocUser, ccEl.attr('alt'));
     
     const userDetect = mediaPage.res.body.match(/\$\.extend\(traits, (.*)\);/);
-    const curUser = userDetect ? JSON.parse(userDetect[1]) : {"username": "anonimous"};
+    const curUser = userDetect ? JSON.parse(userDetect[1]) : {'username': 'anonimous'};
     console.log('[INFO] Your account:', curUser.username, '\n');
     
     const availDetect = eligibleRegion.filter((r)=>{ return r.name == ccLocUser; });
@@ -1035,7 +1035,7 @@ async function getMedia(mMeta){
                             sxData.file = langsData.subsFile(fnOutput, si, s.cl);
                             sxData.langExtCode = s.langExtCode;
                             sxData.langCode = s.cl.code;
-                            sxData.langStr = cl.local;
+                            sxData.langStr = s.cl.local;
                             let sBody = '\ufeff' + s.src;
                             sxData.title = s.title;
                             sxData.fonts = fontsData.assFonts(sBody);

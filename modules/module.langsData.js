@@ -69,7 +69,7 @@ const parseRssSubsString = (subs) => {
         }
     });
     return subs.join(', ');
-}
+};
 
 const sortSubtitles = (data) => {
     const idx = {};
@@ -86,7 +86,7 @@ const sortSubtitles = (data) => {
 
 const subsFile = (fnOutput, seq, lc) => {
     return `${fnOutput}.${(parseInt(seq)+1).toString().padStart(2, '0')} ${lc.code} ${lc.local}.ass`;
-}
+};
 
 const subsStr = (data) => {
     const subs = [];
