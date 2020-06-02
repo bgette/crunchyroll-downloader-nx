@@ -174,8 +174,8 @@ const api = {
     search3:     `${apidomain}/autocomplete.0.json`,
     session:     `${apidomain}/start_session.0.json`,
     collectins:  `${apidomain}/list_collections.0.json`,
-    rss_cid:     `${domain}/syndication/feed?type=episodes&lang=enUS&id=`,
-    rss_gid:     `${domain}/syndication/feed?type=episodes&lang=enUS&group_id=`,
+    rss_cid:     `${domain}/syndication/feed?type=episodes&id=`, // &lang=enUS
+    rss_gid:     `${domain}/syndication/feed?type=episodes&group_id=`, // &lang=enUS
     media_page:  `${domain}/media-`,
     series_page: `${domain}/series-`,
     subs_list:   `${domain}/xml/?req=RpcApiSubtitle_GetListing&media_id=`,
