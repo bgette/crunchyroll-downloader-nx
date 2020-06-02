@@ -24,14 +24,14 @@
 - Proxy not supported
 - Old api for subtitles not supported
 
-### 4.16.1 (2020/03/28)
+### 4.16.1 (2020/04/28)
 - Sort subtitles before muxing
 
 #### Known issues:
 - Proxy is broken
 - oldsubs cli option is broken
 
-### 4.16.0 (2020/03/28)
+### 4.16.0 (2020/04/28)
 - Updated modules
 - Updated url to fonts
 - Improved dlsubs cli option
