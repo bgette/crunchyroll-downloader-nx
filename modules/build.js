@@ -47,8 +47,13 @@ const nodeVer = '-12.15.0';
     fs.copySync('./config/bin-path.yml', `${buildDir}/config/bin-path.yml`);
     fs.copySync('./config/cli-defaults.yml', `${buildDir}/config/cli-defaults.yml`);
     fs.copySync('./config/dir-path.yml', `${buildDir}/config/dir-path.yml`);
+    fs.copySync('./cmd-here.bat', `${buildDir}/cmd-here.bat`);
     fs.copySync('./docs/', `${buildDir}/docs/`);
     fs.copySync('./LICENSE.md', `${buildDir}/docs/LICENSE.md`);
+    if(fs.existsSync(`${buildsDir}/${buildFull}.7z`)){
+        fs.removeSync(`${buildsDir}/${buildFull}.7z`);
+    }
+    require('child_process').execSync(`7z a -t7z "${buildsDir}/${buildFull}.7z" "${buildDir}"`,{stdio:[0,1,2]})
 }());
 
 function getTarget(bt){
