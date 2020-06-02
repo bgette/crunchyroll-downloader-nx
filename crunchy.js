@@ -6,7 +6,6 @@ const fs = require('fs');
 
 // package program
 const packageJson = require('./package.json');
-const ua = {headers:{'user-agent':'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:70.0) Gecko/20100101 Firefox/70.0'}};
 console.log(`\n=== Crunchyroll Downloader NX ${packageJson.version} ===\n`);
 
 // new-cfg
@@ -20,7 +19,7 @@ const sessCfgFile = path.join(cfgFolder,'session');
 const { lookpath } = require('lookpath');
 const yargs = require('yargs');
 const shlp = require('sei-helper');
-const got = require('got').extend(ua);
+const got = require('got');
 const yaml = require('yaml');
 const chio = require('cheerio');
 const xhtml2js = shlp.xhtml2js;
@@ -174,8 +173,8 @@ const api = {
     search3:     `${apidomain}/autocomplete.0.json`,
     session:     `${apidomain}/start_session.0.json`,
     collectins:  `${apidomain}/list_collections.0.json`,
-    rss_cid:     `${domain}/syndication/feed?type=episodes&lang=enUS&id=`,
-    rss_gid:     `${domain}/syndication/feed?type=episodes&lang=enUS&group_id=`,
+    rss_cid:     `${domain}/syndication/feed?type=episodes&id=`, // &lang=enUS
+    rss_gid:     `${domain}/syndication/feed?type=episodes&group_id=`, // &lang=enUS
     media_page:  `${domain}/media-`,
     series_page: `${domain}/series-`,
     subs_list:   `${domain}/xml/?req=RpcApiSubtitle_GetListing&media_id=`,
@@ -1315,9 +1314,10 @@ async function getData(durl, params){
     params = params || {};
     // options
     let options = {
-        // throwHttpErrors: false,
         method: params.method ? params.method : 'GET',
-        headers: {},
+        headers: {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:76.0) Gecko/20100101 Firefox/76.0',
+        },
     };
     // set binary
     if(params.binary == true){
@@ -1354,7 +1354,7 @@ async function getData(durl, params){
     // if auth
     let cookie = [];
     const loc = new URL(durl);
-    if(loc.origin == domain || loc.origin == api.domain){
+    if(loc.origin == domain || loc.origin == apidomain){
         for(let uCookie of usefulCookies.auth){
             if(checkCookieVal(session[uCookie])){
                 cookie.push(uCookie);
@@ -1372,6 +1372,8 @@ async function getData(durl, params){
                 ...session,
             }, cookie);
         }
+        options.minVersion = 'TLSv1.3';
+        options.maxVersion = 'TLSv1.3';
     }
     // debug
     options.hooks = {
@@ -1405,7 +1407,7 @@ async function getData(durl, params){
             console.log(`[ERROR] ${error.name} ${error.response.statusCode}: ${error.response.statusMessage}`);
         }
         else{
-            console.log(`[ERROR] ${error.name}: ${error.code||error.message}`);
+            console.log(`[ERROR] ${error.name}: ${error.code || error.message}`);
         }
         if(error.response && !error.res){
             error.res = error.response;
