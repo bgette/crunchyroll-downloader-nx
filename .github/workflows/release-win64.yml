@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -22,6 +22,16 @@ jobs:
 
       - name: Make build
         run: npm run build-win64
+        
+      - name: Get name from package.json
+        run: |
+          test -n "$(node -p -e "require('./package.json').name")" &&
+          echo "::set-env name=PACKAGE_NAME::$(node -p -e "require('./package.json').name")" || exit 1
+
+      - name: Get version from package.json
+        run: |
+          test -n "$(node -p -e "require('./package.json').version")" &&
+          echo "::set-env name=PACKAGE_VERSION::$(node -p -e "require('./package.json').version")" || exit 1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -29,32 +39,12 @@ jobs:
           name: build-win64
           path: _builds/**/*
 
-  upload_release:
-    runs-on: ubuntu-latest
-    needs: [ build ]
-
-    steps:
-      - name: Collect tag name
-        run: test -n "${GITHUB_REF}" && echo "::set-env name=GIT_REV_TAG::${GITHUB_REF##refs/tags/}" || exit 1
-
-      - name: Download artifact
-        uses: actions/download-artifact@v2
-        with:
-          name: build-win64
-          path: build-win64
-
-      - name: Prepare release zip
-        run: |
-          cd build-win64 &&
-          zip -r ../build-win64.zip . &&
-          cd ..
-
-      - name: Upload release zip
+      - name: Upload release
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./build-win64.zip
-          asset_name: crunchuroll-downloader-nx-${{ env.GIT_REV_TAG }}-win64.zip
-          asset_content_type: application/zip
+          asset_name: ${{ env.PACKAGE_NAME }}-${{ env.PACKAGE_VERSION }}-win64.7z
+          asset_path: ./_builds/${{ env.PACKAGE_NAME }}-${{ env.PACKAGE_VERSION }}-win64.7z
+          asset_content_type: application/x-7z-compressed 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

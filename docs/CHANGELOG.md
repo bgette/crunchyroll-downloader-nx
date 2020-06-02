@@ -1,5 +1,12 @@
 ## Change Log
 
+### 4.18.3 (2020/05/27)
+- Fix "Error #403"
+
+#### Known issues:
+- Proxy not supported
+- Old api for subtitles not supported
+
 ### 4.17.0 (2020/05/27)
 - Sort subtitles before muxing
 - Moved language data to separate
