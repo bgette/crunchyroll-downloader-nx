@@ -1,5 +1,14 @@
 ## Change Log
 
+### 4.18.6 (2020/07/06)
+- Update modules for better hls download function
+- Always display error messages for video page
+- Optional: use curl for requests to crunchyroll server
+
+#### Known issues:
+- Proxy not supported
+- Old api for subtitles not supported
+
 ### 4.18.5 (2020/06/27)
 - Fix 403 error
 

@@ -1,7 +1,7 @@
 {
     "name": "crunchyroll-downloader-nx",
     "short_name": "crunchy",
-    "version": "4.18.5",
+    "version": "4.18.6",
     "description": "Download from Crunchyroll via cli.",
     "keywords": [
         "util",
@@ -23,17 +23,17 @@
     "main": "crunchy.js",
     "dependencies": {
         "cheerio": "^1.0.0-rc.3",
-        "got": "^11.2.0",
-        "hls-download": "^2.4.1",
+        "got": "^11.4.0",
+        "hls-download": "^2.4.2",
         "lookpath": "^1.0.6",
-        "m3u8-parsed": "^1.2.0",
+        "m3u8-parsed": "^1.3.0",
         "sei-helper": "^3.3.0",
         "yaml": "^1.10.0",
-        "yargs": "^15.3.1"
+        "yargs": "^15.4.0"
     },
     "devDependencies": {
-        "fs-extra": "^9.0.0",
-        "nexe": "^3.3.2",
+        "fs-extra": "^9.0.1",
+        "nexe": "^3.3.7",
         "removeNPMAbsolutePaths": "^2.0.0"
     },
     "scripts": {

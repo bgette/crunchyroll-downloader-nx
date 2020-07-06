@@ -7,7 +7,7 @@ const modulesCleanup = require('removeNPMAbsolutePaths');
 const { compile } = require('nexe');
 
 const buildsDir = './_builds';
-const nodeVer = '-12.15.0';
+const nodeVer = '-12.18.2';
 
 // main
 (async function(){
