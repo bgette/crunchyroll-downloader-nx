@@ -92,7 +92,7 @@ let argv = yargs
     .choices('x', [1, 2, 3, 4])
     .default('x', (cfg.cli.nServer || 1))
     .describe('tsparts','Download ts parts in batch')
-    .choices('tsparts', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    .choices('tsparts', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20])
     .default('tsparts', (cfg.cli.tsparts || 10))
     // old api
     .describe('oldstreams','Use old api for fetching stream')
@@ -635,7 +635,7 @@ async function getMedia(mMeta){
     console.log('[INFO] Your region:', ccLocUser, ccEl.attr('alt'));
     
     const userDetect = mediaPage.res.body.match(/\$\.extend\(traits, (.*)\);/);
-    const curUser = userDetect ? JSON.parse(userDetect[1]) : {"username": "anonimous"};
+    const curUser = userDetect ? JSON.parse(userDetect[1]) : {'username': 'anonimous'};
     console.log('[INFO] Your account:', curUser.username, '\n');
     
     const availDetect = eligibleRegion.filter((r)=>{ return r.name == ccLocUser; });
@@ -643,15 +643,20 @@ async function getMedia(mMeta){
     
     // page msgs
     let msgItems = mediaPage.res.body.match(/Page.messaging_box_controller.addItems\((.*)\);/);
-    if(msgItems && argv.pagemsgs){
-        msgItems =  JSON.parse(msgItems[1]);
+    msgItems = msgItems ? JSON.parse(msgItems[1]) : [];
+    msgItems.map(m => {
+        m.type = m.type.toUpperCase();
+        return m;
+    });
+    let msgHasErrors = msgItems.filter(m => m.type == 'ERROR').length > 0 ? true : false;
+    if(msgItems.length > 0 && argv.pagemsgs || msgItems && msgHasErrors){
         let msgItemsArr = [];
         console.log('[INFO] PAGE MSGs:');
         for(let m of msgItems){
-            msgItemsArr.push(`  [${m.type.toUpperCase()}] ${m.message_body.replace(/<[^>]*>?/gm, '')}`);
+            msgItemsArr.push(`  [${m.type}] ${m.message_body.replace(/<[^>]*>?/gm, '')}`);
         }
         msgItemsArr = [...new Set(msgItemsArr)];
-        console.log(msgItemsArr.join('\n'));
+        console.log(msgItemsArr.join('\n'),'\n');
     }
     // --
     
@@ -702,7 +707,7 @@ async function getMedia(mMeta){
             isClip = true;
             let parseCfg    = new URL(videoSrcStr[1]).searchParams;
             let parseCfgUrl = parseCfg.get('config_url') + '&current_page=' + domain;
-            let streamData = await getData(parseCfgUrl,{useProxy: argv.ssp});
+            let streamData = await getData(parseCfgUrl.replace(/http:/, 'https:'), {useProxy: argv.ssp});
             if(streamData.ok){
                 let videoDataBody = streamData.res.body.replace(/\n/g,'').replace(/ +/g,' ');
                 let xmlMediaId    = videoDataBody.match(/<media_id>(\d+)<\/media_id>/);
@@ -898,7 +903,8 @@ async function getMedia(mMeta){
                         if(argv.proxy && !argv.ssp){
                             try{
                                 proxyHLS = {};
-                                proxyHLS.url = buildProxyUrl(argv.proxy,argv['proxy-auth']);
+                                proxyHLS.url = buildProxy(argv.proxy, argv['proxy-auth']);
+                                proxyHLS.url = proxyHLS.url.toString();
                             }
                             catch(e){
                                 console.log(`\n[WARN] Not valid proxy URL${e.input?' ('+e.input+')':''}!`);
@@ -906,6 +912,7 @@ async function getMedia(mMeta){
                                 proxyHLS = false;
                             }
                         }
+                        console.log('[INFO] Total parts in stream:', chunkList.segments.length);
                         let tsFile = path.join(cfg.dir.content, fnOutput);
                         let streamdlParams = {
                             fn: `${tsFile}.ts`,
@@ -1035,7 +1042,7 @@ async function getMedia(mMeta){
                             sxData.file = langsData.subsFile(fnOutput, si, s.cl);
                             sxData.langExtCode = s.langExtCode;
                             sxData.langCode = s.cl.code;
-                            sxData.langStr = cl.local;
+                            sxData.langStr = s.cl.local;
                             let sBody = '\ufeff' + s.src;
                             sxData.title = s.title;
                             sxData.fonts = fontsData.assFonts(sBody);
@@ -1246,7 +1253,7 @@ async function muxStreams(){
     // chack paths if same
     if(path.join(cfg.dir.trash) == path.join(cfg.dir.content)){
         argv.notrashfolder = true;
-        argv.nocleanup = true;
+        // argv.nocleanup = true;
     }
     if(argv.nocleanup && !fs.existsSync(cfg.dir.trash)){
         argv.notrashfolder = true;
@@ -1271,12 +1278,10 @@ async function muxStreams(){
             }
         }
     }
-    else{
-        if(isMuxed){
-            fs.unlinkSync(`${muxFile}.ts`);
-            if(fs.existsSync(`${muxFile}.json`) && !argv.jsonmuxdebug){
-                fs.unlinkSync(`${muxFile}.json`);
-            }
+    else if(isMuxed){
+        fs.unlinkSync(`${muxFile}.ts`);
+        if(fs.existsSync(`${muxFile}.json`) && !argv.jsonmuxdebug){
+            fs.unlinkSync(`${muxFile}.json`);
         }
         if(addSubs){
             for(let t of sxList){
@@ -1336,20 +1341,16 @@ async function getData(durl, params){
         options.body = params.body;
     }
     // proxy
-    if(params.useProxy && argv.proxy){
-        /*
+    if(params.useProxy && argv.proxy && argv.curl){
         try{
-            const agent = require('proxy-agent');
-            let proxyUrl = buildProxyUrl(argv.proxy,argv['proxy-auth']);
-            options.agent = new agent(proxyUrl);
-            options.timeout = 10000;
+            options.curlProxy =  buildProxy(argv.proxy);
+            options.curlProxyAuth = argv['proxy-auth'];
         }
         catch(e){
-            console.log(`\n[WARN] Not valid proxy URL${e.input?' ('+e.input+')':''}!`);
-            console.log('[WARN] Skiping...');
+            console.log(`[WARN] Not valid proxy URL${e.input?' ('+e.input+')':''}!`);
+            console.log('[WARN] Skiping...\n');
             argv.proxy = false;
         }
-        */
     }
     // if auth
     let cookie = [];
@@ -1372,6 +1373,8 @@ async function getData(durl, params){
                 ...session,
             }, cookie);
         }
+    }
+    if(loc.origin == domain){
         options.minVersion = 'TLSv1.3';
         options.maxVersion = 'TLSv1.3';
         options.http2 = true;
@@ -1387,9 +1390,19 @@ async function getData(durl, params){
             }
         ]
     };
+    if(argv.debug){ 
+        options.curlDebug = true;
+    }
     // do req
     try {
-        let res = await got(durl.toString(), options);
+        let res;
+        if(argv.curl && loc.origin == domain){
+            const curlReq = require('./modules/module.curl-req');
+            res = await curlReq(durl.toString(), options, path.join(__dirname, './config/'));
+        }
+        else{
+            res = await got(durl.toString(), options);
+        }
         if(!params.skipCookies && res.headers['set-cookie']){
             setNewCookie(res.headers['set-cookie']);
             for(let uCookie of usefulCookies.sess){
@@ -1412,6 +1425,10 @@ async function getData(durl, params){
         }
         if(error.response && !error.res){
             error.res = error.response;
+            const docTitle = error.res.body.match(/<title>(.*)<\/title>/);
+            if(error.res.body && docTitle){
+                console.log('[ERROR]', docTitle[1]);
+            }
         }
         return {
             ok: false,
@@ -1465,14 +1482,32 @@ function checkSessId(session_id){
             && typeof session_id.value   == 'string'
         ?  true : false;
 }
-function buildProxyUrl(proxyBaseUrl, proxyAuth){
+function buildProxy(proxyBaseUrl, proxyAuth){
+    if(!proxyBaseUrl.match(/^(https?|socks4|socks5):/)){
+        proxyBaseUrl = 'http://' + proxyBaseUrl;
+    }
+    
     let proxyCfg = new URL(proxyBaseUrl);
-    if(typeof proxyCfg.hostname != 'string' || typeof proxyCfg.port != 'string'){
+    let proxyStr = `${proxyCfg.protocol}//`;
+    
+    if(typeof proxyCfg.hostname != 'string' || proxyCfg.hostname == ''){
         throw new Error('[ERROR] Hostname and port required for proxy!');
     }
+    
     if(proxyAuth && typeof proxyAuth == 'string' && proxyAuth.match(':')){
         proxyCfg.username = proxyAuth.split(':')[0];
         proxyCfg.password = proxyAuth.split(':')[1];
+        proxyStr += `${proxyCfg.username}:${proxyCfg.password}@`;
     }
-    return proxyCfg;
+    
+    proxyStr += proxyCfg.hostname;
+    
+    if(!proxyCfg.port && proxyCfg.protocol == 'http:'){
+        proxyStr += ':80';
+    }
+    else if(!proxyCfg.port && proxyCfg.protocol == 'https:'){
+        proxyStr += ':443';
+    }
+    
+    return proxyStr;
 }
