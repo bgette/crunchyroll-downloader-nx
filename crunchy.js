@@ -66,8 +66,6 @@ let argv = yargs
     .help(false).version(false)
     // auth
     .describe('auth','Enter auth mode')
-    .describe('user','Username used for un-interactive authentication (Used with --auth)')
-    .describe('pass','Password used for un-interactive authentication (Used with --auth)')
     // fonts
     .describe('dlfonts','Download all required fonts for mkv muxing')
     // search
@@ -107,6 +105,10 @@ let argv = yargs
     .describe('dlsubs','Download subtitles by language tag')
     .choices('dlsubs', langsData.subsLangsFilter)
     .default('dlsubs', (cfg.cli.dlSubs || 'all'))
+	// default subtitle language
+    .describe('defsublang','Set default subitlte by language')
+    .choices('defsublang',["enUS", "esLA", "esES", "frFR", "ptBR", "ptPT", "arME", "itIT", "deDE", "ruRU", "trTR"])
+    .default('defsublang', (cfg.cli.defsublang || 'frFR')) //télécharge les sous-titres français par défaut
     // skip
     .describe('skipdl','Skip downloading video (for downloading subtitles only)')
     .boolean('skipdl')
@@ -222,8 +224,8 @@ const usefulCookies = {
 // auth method
 async function doAuth(){
     console.log('[INFO] Authentication');
-    const iLogin = argv.user ? argv.user : await shlp.question('[Q] LOGIN/EMAIL');
-    const iPsswd = argv.pass ? argv.pass : await shlp.question('[Q] PASSWORD   ');
+    const iLogin = await shlp.question('[Q] LOGIN/EMAIL');
+    const iPsswd = await shlp.question('[Q] PASSWORD   ');
     const authData = new URLSearchParams({
         name: iLogin,
         password: iPsswd
@@ -1184,6 +1186,10 @@ async function muxStreams(){
                 let subsFile = path.join(cfg.dir.content, t.file);
                 mkvmux.push('--track-name',`0:${t.langStr} / ${t.title}`);
                 mkvmux.push('--language',`0:${t.langCode}`);
+				if(t.langExtCode == argv.defsublang) {
+					console.log(`[INFO] Set default subtitle to: ${t.langStr} / ${t.title}`);
+					mkvmux.push('--forced-track','0:yes','--default-track','0:yes');
+				}
                 mkvmux.push(`${subsFile}`);
             }
         }
