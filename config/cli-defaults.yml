@@ -7,10 +7,14 @@ dubLanguage: jpn
 mp4mux: false
 muxSubs: false
 noCleanUp: false
-nServer: 1
 kStream: 1
+nServer: 1
+tsparts: 10
+oldStreams: false
 oldSubs: false
+hsLang: none
 dlSubs: all
+defSubLang: none
 proxy: false
 proxy_auth: false
 proxy_ssp: false
