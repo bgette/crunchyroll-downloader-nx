@@ -15,6 +15,7 @@ oldSubs: false
 hsLang: none
 dlSubs: all
 defSubLang: none
+useFolder: false
 proxy: false
 proxy_auth: false
 proxy_ssp: false

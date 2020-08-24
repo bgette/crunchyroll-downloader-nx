@@ -113,7 +113,7 @@ let argv = yargs
     .default('dlsubs', (cfg.cli.dlSubs || 'all'))
     // default subtitle language
     .describe('defsublang','Set default subitlte by language')
-    .choices('defsublang', langsData.subsLangsFilter.slice(2, -1))
+    .choices('defsublang', langsData.subsLangsFilter.slice(1, -1))
     .default('defsublang', (cfg.cli.defSubLang || langsData.subsLangsFilter.slice(1, 2)[0]))
     // skip
     .describe('skipdl','Skip downloading video (for downloading subtitles only)')
@@ -150,6 +150,10 @@ let argv = yargs
     .default('el',cfg.cli.epNumLength || 2)
     .describe('suffix','Filenaming: Filename suffix override (first "SIZEp" will be replaced with actual video size)')
     .default('suffix',cfg.cli.fileSuffix || 'SIZEp')
+    // use folder
+    .describe('folder','After muxing move file to created "series title" folder')
+    .boolean('folder')
+    .default('folder',cfg.cli.useFolder || false)
     // util
     .describe('nocleanup','Move temporary files to trash folder instead of deleting')
     .boolean('nocleanup')

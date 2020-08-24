@@ -1,5 +1,16 @@
 ## Change Log
 
+### 4.19.0 (2020/08/24)
+- Update modules for better hls download function
+- Added option to set default subtitle language (#15)
+- Added option to download video with hardsubs
+- Added un-interactive auth (#14)
+- Added option to create series title subfolder
+
+#### Known issues:
+- Proxy not supported
+- Old api for subtitles not supported
+
 ### 4.18.6 (2020/07/06)
 - Update modules for better hls download function
 - Always display error messages for video page
