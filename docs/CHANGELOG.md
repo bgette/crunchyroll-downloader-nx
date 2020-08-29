@@ -1,5 +1,8 @@
 ## Change Log
 
+### 4.19.1 (2020/08/29)
+- Overwrite duplicate options
+
 ### 4.19.0 (2020/08/24)
 - Update modules for better hls download function
 - Added option to set default subtitle language (#15)

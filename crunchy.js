@@ -59,7 +59,9 @@ const cfg = {
 let session = getYamlCfg(sessCfgFile, true);
 
 // args
-let argv = yargs
+let argv = yargs.parserConfiguration({
+        "duplicate-arguments-array": false,
+    })
     // main
     .wrap(Math.min(100))
     .usage('Usage: $0 [options]')
