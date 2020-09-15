@@ -59,13 +59,17 @@ const cfg = {
 let session = getYamlCfg(sessCfgFile, true);
 
 // args
-let argv = yargs
+let argv = yargs.parserConfiguration({
+        "duplicate-arguments-array": false,
+    })
     // main
     .wrap(Math.min(100))
     .usage('Usage: $0 [options]')
     .help(false).version(false)
     // auth
     .describe('auth','Enter auth mode')
+    .describe('user','Username used for un-interactive authentication (Used with --auth)')
+    .describe('pass','Password used for un-interactive authentication (Used with --auth)')
     // fonts
     .describe('dlfonts','Download all required fonts for mkv muxing')
     // search
@@ -101,14 +105,18 @@ let argv = yargs
     .describe('oldsubs','Use old api for fetching subtitles')
     .boolean('oldsubs')
     .default('oldsubs', cfg.cli.oldSubs || false)
+    // hsubs
+    .describe('hslang','Download video with specific hardsubs')
+    .choices('hslang', langsData.subsLangsFilter.slice(1, -1))
+    .default('hslang', (cfg.cli.hsLang || 'none'))
     // dl subs
     .describe('dlsubs','Download subtitles by language tag')
-    .choices('dlsubs', langsData.subsLangsFilter)
+    .choices('dlsubs', langsData.subsLangsFilter.slice(0, -1))
     .default('dlsubs', (cfg.cli.dlSubs || 'all'))
-	// default subtitle language
+    // default subtitle language
     .describe('defsublang','Set default subitlte by language')
-    .choices('defsublang',["enUS", "esLA", "esES", "frFR", "ptBR", "ptPT", "arME", "itIT", "deDE", "ruRU", "trTR"])
-    .default('defsublang', (cfg.cli.defsublang || 'frFR')) //télécharge les sous-titres français par défaut
+    .choices('defsublang', langsData.subsLangsFilter.slice(1, -1))
+    .default('defsublang', (cfg.cli.defSubLang || langsData.subsLangsFilter.slice(1, 2)[0]))
     // skip
     .describe('skipdl','Skip downloading video (for downloading subtitles only)')
     .boolean('skipdl')
@@ -144,6 +152,10 @@ let argv = yargs
     .default('el',cfg.cli.epNumLength || 2)
     .describe('suffix','Filenaming: Filename suffix override (first "SIZEp" will be replaced with actual video size)')
     .default('suffix',cfg.cli.fileSuffix || 'SIZEp')
+    // use folder
+    .describe('folder','After muxing move file to created "series title" folder')
+    .boolean('folder')
+    .default('folder',cfg.cli.useFolder || false)
     // util
     .describe('nocleanup','Move temporary files to trash folder instead of deleting')
     .boolean('nocleanup')
@@ -224,8 +236,8 @@ const usefulCookies = {
 // auth method
 async function doAuth(){
     console.log('[INFO] Authentication');
-    const iLogin = await shlp.question('[Q] LOGIN/EMAIL');
-    const iPsswd = await shlp.question('[Q] PASSWORD   ');
+    const iLogin = argv.user ? argv.user : await shlp.question('[Q] LOGIN/EMAIL');
+    const iPsswd = argv.pass ? argv.pass : await shlp.question('[Q] PASSWORD   ');
     const authData = new URLSearchParams({
         name: iLogin,
         password: iPsswd
@@ -742,17 +754,29 @@ async function getMedia(mMeta){
         let hlsStreams = {};
         let hlsStreamIndex = 1;
         // streams.reverse();
+        // set hardsubs
+        let hsLang = argv.hslang ? argv.hslang : null;
+        if(langsData.subsLangsFilter.indexOf(hsLang) > 0 && ['all', 'none'].indexOf(hsLang) < 0){
+            console.log('[INFO] Selecting stream with %s hardsubs', hsLang);
+            argv.dlsubs = 'none';
+        }
+        else{
+            console.log('[INFO] Selecting raw stream');
+            hsLang = null;
+        }
+        // --
         for(let s in streams){
+            
             let isHls = streams[s].format.match(/hls/)
                 && !streams[s].format.match(/drm/) ? true : false;
-            let checkParams = isHls && streams[s].hardsub_lang === null;
+            let checkParams = isHls && streams[s].hardsub_lang === hsLang;
             if(streams[s].url.match(/clipFrom/)){
                 isClip = true;
             }
             if(checkParams && !isClip){
                 let sKeyStr = `${streams[s].format}/${streams[s].audio_lang}`;
                 hlsStreams[sKeyStr] = streams[s].url;
-                console.log(`[INFO] Full raw stream found! (${hlsStreamIndex}: ${sKeyStr})`);
+                console.log(`[INFO] Full stream found! (${hlsStreamIndex}: ${sKeyStr})`);
                 hlsStreamIndex++;
             }
         }
@@ -885,6 +909,9 @@ async function getMedia(mMeta){
                 if(argv.ssu){
                     console.log('[INFO] Stream URL:',videoUrl);
                 }
+                if(argv.ssuex){
+                    console.log('[INFO] Streams Data:', plStreams);
+                }
                 // filename
                 fnSuffix = argv.suffix.replace('SIZEp',argv.q);
                 fnOutput = fnOutputGen();
@@ -916,7 +943,10 @@ async function getMedia(mMeta){
                                 proxyHLS = false;
                             }
                         }
-                        console.log('[INFO] Total parts in stream:', chunkList.segments.length);
+                        let totalParts = chunkList.segments.length;
+                        let mathParts  = Math.ceil(totalParts / argv.tsparts);
+                        let mathMsg    = `(${mathParts}*${argv.tsparts})`;
+                        console.log('[INFO] Total parts in stream:', totalParts, mathMsg);
                         let tsFile = path.join(cfg.dir.content, fnOutput);
                         let streamdlParams = {
                             fn: `${tsFile}.ts`,
@@ -1144,6 +1174,7 @@ async function muxStreams(){
     // usage
     let usableMKVmerge = true;
     let usableFFmpeg = true;
+    let setMainSubLang = argv.defsublang != 'none' ? argv.defsublang : false;
     // check exec path
     let mkvmergebinfile = await lookpath(path.join(cfg.bin.mkvmerge));
     let ffmpegbinfile   = await lookpath(path.join(cfg.bin.ffmpeg));
@@ -1186,10 +1217,11 @@ async function muxStreams(){
                 let subsFile = path.join(cfg.dir.content, t.file);
                 mkvmux.push('--track-name',`0:${t.langStr} / ${t.title}`);
                 mkvmux.push('--language',`0:${t.langCode}`);
-				if(t.langExtCode == argv.defsublang) {
-					console.log(`[INFO] Set default subtitle to: ${t.langStr} / ${t.title}`);
-					mkvmux.push('--forced-track','0:yes','--default-track','0:yes');
-				}
+                if(setMainSubLang && t.langExtCode == argv.defsublang) {
+                    console.log(`[INFO] Set default subtitle language to: ${t.langStr} / ${t.title}`);
+                    mkvmux.push('--default-track','0:yes');
+                    setMainSubLang = false;
+                }
                 mkvmux.push(`${subsFile}`);
             }
         }
@@ -1253,6 +1285,7 @@ async function muxStreams(){
         ffmux.push(`"${muxFile}.${ffext}"`);
         try{ shlp.exec('ffmpeg',`"${ffmpegbinfile}"`,ffmux.join(' ')); }catch(e){}
         isMuxed = true;
+        setMainSubLang = false;
     }
     else{
         console.log('\n[INFO] Done!\n');
