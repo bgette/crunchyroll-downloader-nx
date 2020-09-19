@@ -1,6 +1,6 @@
 ## Change Log
 
-### 4.20.0 (2020/08/29)
+### 4.20.0 (2020/09/19)
 - Improved cli options
 - Update available servers parsing
 - Update modules
