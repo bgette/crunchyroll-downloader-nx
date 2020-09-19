@@ -1,5 +1,14 @@
 ## Change Log
 
+### 4.20.0 (2020/08/29)
+- Improved cli options
+- Update available servers parsing
+- Update modules
+
+#### Known issues:
+- Proxy not supported
+- Old api for subtitles not supported
+
 ### 4.19.1 (2020/08/29)
 - Overwrite duplicate options
 

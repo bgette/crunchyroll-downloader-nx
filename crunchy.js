@@ -63,107 +63,258 @@ let argv = yargs.parserConfiguration({
         "duplicate-arguments-array": false,
     })
     // main
-    .wrap(Math.min(100))
+    .wrap(Math.min(120))
+    // .wrap(yargs.terminalWidth())
     .usage('Usage: $0 [options]')
     .help(false).version(false)
     // auth
-    .describe('auth','Enter auth mode')
-    .describe('user','Username used for un-interactive authentication (Used with --auth)')
-    .describe('pass','Password used for un-interactive authentication (Used with --auth)')
+    .option('auth', {
+        group: 'Authentication:',
+        describe: 'Enter authentication mode',
+        type: 'boolean'
+    })
+    .option('user', {
+        implies: ['auth', 'pass'],
+        group: 'Authentication:',
+        describe: 'Username used for un-interactive authentication (Used with --auth)',
+        type: 'string'
+    })
+    .option('pass', {
+        implies: ['auth', 'user'],
+        group: 'Authentication:',
+        describe: 'Password used for un-interactive authentication (Used with --auth)',
+        type: 'string'
+    })
     // fonts
-    .describe('dlfonts','Download all required fonts for mkv muxing')
+    .option('dlfonts', {
+        group: 'Fonts:',
+        describe: 'Download all required fonts for mkv muxing',
+        type: 'boolean'
+    })
     // search
-    .describe('search','Search show ids')
-    .alias('search','f')
-    .describe('search2','Search show ids (multi-language, experimental)')
-    .alias('search2','g')
-    // req params
-    .describe('s','Sets the show id')
-    .describe('e','Select episode ids (comma-separated, hyphen-sequence)')
+    .option('search', {
+        alias: 'f',
+        group: 'Search:',
+        describe: 'Search show ids',
+        type: 'string'
+    })
+    .option('search2', {
+        alias: 'g',
+        group: 'Search:',
+        describe: 'Search show ids (multi-language, experimental)',
+        type: 'string'
+    })
+    // select show and eps
+    .option('s', {
+        group: 'Downloading:',
+        describe: 'Sets the show id',
+        type: 'number'
+    })
+    .option('e', {
+        group: 'Downloading:',
+        describe: 'Select episode ids (comma-separated, hyphen-sequence)',
+        type: 'string'
+    })
     // quality
-    .describe('q','Video Quality')
-    .choices('q',['240p','360p','480p','720p','1080p','max'])
-    .default('q',(cfg.cli.videoQuality || '720p'))
+    .option('q', {
+        group: 'Downloading:',
+        describe: 'Set video quality',
+        choices: ['240p','360p','480p','720p','1080p','max'],
+        default: cfg.cli.videoQuality || '720p',
+        type: 'string'
+    })
     // set dub
-    .describe('dub','Set audio language by language code (sometimes not detect correctly)')
-    .choices('dub', langsData.isoLangs)
-    .default('dub', (cfg.cli.dubLanguage || 'jpn'))
+    .option('dub', {
+        group: 'Muxing:',
+        describe: 'Set audio language by language code (sometimes not detect correctly)',
+        choices: langsData.isoLangs,
+        default: cfg.cli.dubLanguage || langsData.isoLangs.slice(0, -1),
+        type: 'string'
+    })
     // server
-    .describe('kstream','Select specific stream')
-    .choices('kstream', [1, 2, 3, 4, 5])
-    .default('kstream', (cfg.cli.kStream || 1))
-    .describe('x','Select server')
-    .choices('x', [1, 2, 3, 4])
-    .default('x', (cfg.cli.nServer || 1))
-    .describe('tsparts','Download ts parts in batch')
-    .choices('tsparts', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20])
-    .default('tsparts', (cfg.cli.tsparts || 10))
+    .option('kstream', {
+        group: 'Downloading:',
+        describe: 'Select specific stream',
+        choices: [1, 2, 3, 4, 5],
+        default: cfg.cli.kStream || 1,
+        type: 'number'
+    })
+    .option('x', {
+        alias: 'server',
+        group: 'Downloading:',
+        describe: 'Select server',
+        choices: [1, 2, 3, 4],
+        default: cfg.cli.nServer || 1,
+        type: 'number'
+    })
+    .option('tsparts', {
+        group: 'Downloading:',
+        describe: 'Download ts parts in batch',
+        choices: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30],
+        default: cfg.cli.tsparts || 10,
+        type: 'number'
+    })
     // old api
-    .describe('oldstreams','Use old api for fetching stream')
-    .boolean('oldstreams')
-    .default('oldstreams', cfg.cli.oldStreams || false)
-    .describe('oldsubs','Use old api for fetching subtitles')
-    .boolean('oldsubs')
-    .default('oldsubs', cfg.cli.oldSubs || false)
+    .option('oldstreams', {
+        group: 'Downloading:',
+        describe: 'Use old api for fetching stream',
+        default: cfg.cli.oldStreams || false,
+        type: 'boolean'
+    })
+    .option('oldsubs', {
+        group: 'Downloading:',
+        describe: 'Use old api for fetching subtitles [NOT WORKING!]',
+        default: cfg.cli.oldSubs || false,
+        type: 'boolean'
+    })
     // hsubs
-    .describe('hslang','Download video with specific hardsubs')
-    .choices('hslang', langsData.subsLangsFilter.slice(1, -1))
-    .default('hslang', (cfg.cli.hsLang || 'none'))
+    .option('hslang', {
+        group: 'Downloading:',
+        describe: 'Download video with specific hardsubs',
+        choices: langsData.subsLangsFilter.slice(1, -1),
+        default: cfg.cli.hsLang || 'none',
+        type: 'string'
+    })
     // dl subs
-    .describe('dlsubs','Download subtitles by language tag')
-    .choices('dlsubs', langsData.subsLangsFilter.slice(0, -1))
-    .default('dlsubs', (cfg.cli.dlSubs || 'all'))
+    .option('dlsubs', {
+        group: 'Downloading:',
+        describe: 'Download subtitles by language tag',
+        choices: langsData.subsLangsFilter.slice(0, -1),
+        default: cfg.cli.dlSubs || 'all',
+        type: 'string'
+    })
     // default subtitle language
-    .describe('defsublang','Set default subitlte by language')
-    .choices('defsublang', langsData.subsLangsFilter.slice(1, -1))
-    .default('defsublang', (cfg.cli.defSubLang || langsData.subsLangsFilter.slice(1, 2)[0]))
+    .option('defsublang', {
+        group: 'Muxing:',
+        describe: 'Set default subtitle by language',
+        choices: langsData.subsLangsFilter.slice(1, -1),
+        default: cfg.cli.defSubLang || langsData.subsLangsFilter.slice(1, 2)[0],
+        type: 'string'
+    })
     // skip
-    .describe('skipdl','Skip downloading video (for downloading subtitles only)')
-    .boolean('skipdl')
-    .alias('skipdl','novids')
-    .describe('skipmux','Skip muxing video and subtitles')
-    .boolean('skipmux')
+    .option('skipdl', {
+        group: 'Downloading:',
+        alias: 'novids',
+        describe: 'Skip downloading video (for downloading subtitles only)',
+        type: 'boolean'
+    })
+    .option('skipmux', {
+        group: 'Muxing:',
+        describe: 'Skip muxing video and subtitles',
+        type: 'boolean'
+    })
     // proxy
-    .describe('proxy','Set http(s)/socks proxy WHATWG url')
-    .default('proxy', (cfg.cli.proxy || false))
-    .describe('proxy-auth','Colon-separated username and password for proxy')
-    .default('proxy-auth', (cfg.cli.proxy_auth || false))
-    .describe('ssp','Don\'t use proxy for stream and subtitles downloading')
-    .boolean('ssp')
-    .default('ssp', (cfg.cli.proxy_ssp || false))
+    .option('proxy', {
+        group: 'Proxy:',
+        describe: 'Set http(s)/socks proxy WHATWG url',
+        default: cfg.cli.proxy || false,
+        hidden: true,
+    })
+    .option('proxy-auth', {
+        group: 'Proxy:',
+        describe: 'Colon-separated username and password for proxy',
+        default: cfg.cli.proxy_auth || false,
+        hidden: true,
+    })
+    .option('ssp', {
+        group: 'Proxy:',
+        describe: 'Don\'t use proxy for stream and subtitles downloading',
+        default: cfg.cli.proxy_ssp || false,
+        hidden: true,
+        type: 'boolean'
+    })
     // muxing
-    .describe('mp4','Mux into mp4')
-    .boolean('mp4')
-    .default('mp4',cfg.cli.mp4mux || false)
-    // .describe('noaudsync','Set audio offset to 0ms')
-    .boolean('noaudsync')
-    .describe('mks','Add subtitles to mkv/mp4 (if available)')
-    .boolean('mks')
-    .default('mks',cfg.cli.muxSubs || false)
+    .option('mp4', {
+        group: 'Muxing:',
+        describe: 'Mux into mp4',
+        default: cfg.cli.mp4mux || false,
+        type: 'boolean'
+    })
+    .option('noaudsync', {
+        group: 'Muxing:',
+        describe: 'Don\'t sync audio',
+        default: cfg.cli.noaudsync || false,
+        hidden: true,
+        type: 'boolean'
+    })
+    .option('mks', {
+        group: 'Muxing:',
+        describe: 'Add subtitles to mkv/mp4 (if available)',
+        default: cfg.cli.muxSubs || false,
+        type: 'boolean'
+    })
     // set title
-    .describe('filename','Filenaming: Template')
-    .default('filename', (cfg.cli.filenameTemplate || '[{rel_group}] {title} - {ep_num} [{suffix}]'))
-    .describe('a','Filenaming: Release group')
-    .default('a',cfg.cli.releaseGroup || 'CR')
-    .describe('t','Filenaming: Series title override')
-    .describe('ep','Filenaming: Episode number override (ignored in batch mode)')
-    .describe('el','Filenaming: Episode number length')
-    .choices('el', [1, 2, 3, 4])
-    .default('el',cfg.cli.epNumLength || 2)
-    .describe('suffix','Filenaming: Filename suffix override (first "SIZEp" will be replaced with actual video size)')
-    .default('suffix',cfg.cli.fileSuffix || 'SIZEp')
-    // use folder
-    .describe('folder','After muxing move file to created "series title" folder')
-    .boolean('folder')
-    .default('folder',cfg.cli.useFolder || false)
+    .option('filename', {
+        group: 'Filename Template:',
+        describe: 'Template',
+        default: cfg.cli.filenameTemplate || '[{rel_group}] {title} - {ep_num} [{suffix}]',
+        type: 'string'
+    })
+    .option('a', {
+        alias: 'grouptag',
+        group: 'Filename Template:',
+        describe: 'Release group',
+        default: cfg.cli.releaseGroup || 'CR',
+        type: 'string'
+    })
+    .option('t', {
+        alias: 'title',
+        group: 'Filename Template:',
+        describe: 'Series title override',
+        type: 'string'
+    })
+    .option('ep', {
+        group: 'Filename Template:',
+        describe: 'Episode number override (ignored in batch mode)',
+        type: 'string'
+    })
+    .option('el', {
+        group: 'Filename Template:',
+        describe: 'Episode number length',
+        choices: [1, 2, 3, 4],
+        default: cfg.cli.epNumLength || 2,
+        type: 'number'
+    })
+    .option('suffix', {
+        group: 'Filename Template:',
+        describe: 'Filename suffix override (first "SIZEp" will be replaced with actual video size)',
+        default: cfg.cli.fileSuffix || 'SIZEp',
+        type: 'string'
+    })
     // util
-    .describe('nocleanup','Move temporary files to trash folder instead of deleting')
-    .boolean('nocleanup')
-    .default('nocleanup',cfg.cli.noCleanUp || false)
+    .option('folder', {
+        group: 'Utilities:',
+        describe: 'After muxing move file to created "series title" folder',
+        default: cfg.cli.useFolder || false,
+        type: 'boolean'
+    })
+    .option('nocleanup', {
+        group: 'Utilities:',
+        describe: 'Move temporary files to trash folder instead of deleting',
+        default: cfg.cli.noCleanUp || false,
+        type: 'boolean'
+    })
+    .option('notrashfolder', {
+        group: 'Utilities:',
+        describe: 'Don\'t move temporary files to trash folder (Used with --nocleanup)',
+        default: cfg.cli.noTrashFolder || false,
+        type: 'boolean'
+    })
     // help
-    .describe('help','Show this help')
-    .boolean('help')
-    .alias('help','h')
+    .option('help', {
+        alias: 'h',
+        group: 'Help:',
+        describe: 'Show this help',
+        type: 'boolean'
+    })
+    // usage
+    .example([
+        ['$0 --search "Naruto"', 'search "Naruto" in title'],
+        ['$0 -s 124389 -e 1,2,3', 'download episodes 1-3 from show with id 124389'],
+        ['$0 -s 124389 -e 1-3,2-7,s1-2', 'download episodes 1-3 from show with id 124389'],
+        ['$0 -s 124389 -e m132223', 'download media_id 132223 from show with id 124389']
+    ])
+    // --
     .argv;
 
 // fn variables
@@ -844,11 +995,6 @@ async function getMedia(mMeta){
         else{
             // parse
             let plQualityLinkList = m3u8(streamPlaylist.res.body);
-            // main servers
-            let mainServersList = [
-                'v.vrv.co',
-                'a-vrv.akamaized.net'
-            ];
             // variables
             let plServerList = [],
                 plStreams    = {},
@@ -860,19 +1006,28 @@ async function getMedia(mMeta){
                 let plResText    = `${plResolution}p`;
                 plMaxQuality = plMaxQuality < plResolution ? plResolution : plMaxQuality;
                 let plUrlDl  = s.uri;
-                let plServer = plUrlDl.split('/')[2];
+                let plServer;
+                
+                plServer = plUrlDl.split('/')[2];
+                if(plUrlDl.match(/&cdn=([a-z-]+)/)){
+                    plServer = `${plUrlDl.split('/')[2]} (${plUrlDl.match(/&cdn=([a-z-]+)/)[1]})`;
+                }
+                
                 if(!plServerList.includes(plServer)){
                     plServerList.push(plServer);
                 }
+                
                 if(!Object.keys(plStreams).includes(plServer)){
                     plStreams[plServer] = {};
                 }
-                if(plStreams[plServer][plResText] && plStreams[plServer][plResText] != plUrlDl){
+                
+                if(plStreams[plServer][plResText] && plStreams[plServer][plResText] != plUrlDl && typeof plStreams[plServer][plResText] != "undefined"){
                     console.log(`[WARN] Non duplicate url for ${plServer} detected, please report to developer!`);
                 }
                 else{
                     plStreams[plServer][plResText] = plUrlDl;
                 }
+                
                 // set plQualityStr
                 let plBandwidth  = Math.round(s.attributes.BANDWIDTH/1024);
                 if(plResolution<1000){
@@ -884,16 +1039,9 @@ async function getMedia(mMeta){
                 if(qualityStrMatch){
                     plQualityStr.push(qualityStrAdd);
                 }
+                
             }
-            
-            for(let s of mainServersList){
-                if(plServerList.includes(s)){
-                    plServerList.splice(plServerList.indexOf(s),1);
-                    plServerList.unshift(s);
-                    break;
-                }
-            }
-            
+
             argv.q = argv.q == 'max' ? `${plMaxQuality}p` : argv.q;
             
             let plSelectedServer = plServerList[argv.x-1];
