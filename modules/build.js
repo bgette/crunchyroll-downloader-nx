@@ -44,7 +44,13 @@ const nodeVer = '';
         ],
     };
     console.log(`[Build] Build configuration: ${buildFull}`);
-    await compile(buildConfig);
+    try {
+        await compile(buildConfig);
+    }
+    catch(e){
+        console.log(e);
+        process.exit();
+    }
     fs.copySync('./config/bin-path.yml', `${buildDir}/config/bin-path.yml`);
     fs.copySync('./config/cli-defaults.yml', `${buildDir}/config/cli-defaults.yml`);
     fs.copySync('./config/dir-path.yml', `${buildDir}/config/dir-path.yml`);
