@@ -84,7 +84,7 @@ const api = {
 
 // set usable cookies
 const usefulCookies = {
-    auth: [ 
+    auth: [
         'etp_rt',
         'c_visitor',
     ],
