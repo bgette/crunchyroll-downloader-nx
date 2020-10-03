@@ -34,7 +34,7 @@ const nodeVer = '';
     fs.mkdirSync(`${buildDir}/videos`);
     fs.mkdirSync(`${buildDir}/videos/_trash`);
     const buildConfig = {
-        // build: true,
+        build: true,
         input: './crunchy.js',
         output: `${buildDir}/${pkg.short_name}`,
         target: getTarget(buildType) + nodeVer,

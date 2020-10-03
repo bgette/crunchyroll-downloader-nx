@@ -1,5 +1,13 @@
 ## Change Log
 
+### 4.21.0-beta.1 (2020/10/03)
+- Added ability load session from cookies.txt
+- Added `episode name` to filename template
+
+#### Known issues:
+- Proxy not supported
+- Old api for subtitles not supported
+
 ### 4.20.0 (2020/09/19)
 - Improved cli options
 - Update available servers parsing
@@ -17,7 +25,7 @@
 - Added option to set default subtitle language (#15)
 - Added option to download video with hardsubs
 - Added un-interactive auth (#14)
-- Added option to create series title subfolder
+- Added option to create series title sub folder
 
 #### Known issues:
 - Proxy not supported
