@@ -1,8 +1,9 @@
 ## Change Log
 
-### 4.21.0 beta 1 (2020/10/03)
-- Added ability load session from cookies.txt
-- Added `episode name` to filename template
+### 4.21.0 beta (2020/10/03)
+- [Beta 1] Added ability load session from cookies.txt
+- [Beta 1] Added `episode name` to filename template
+- [Beta 2] Fix binary build
 
 #### Known issues:
 - Proxy not supported
