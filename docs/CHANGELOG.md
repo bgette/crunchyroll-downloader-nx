@@ -1,6 +1,6 @@
 ## Change Log
 
-### 4.21.0-beta.1 (2020/10/03)
+### 4.21.0 beta 1 (2020/10/03)
 - Added ability load session from cookies.txt
 - Added `episode name` to filename template
 
