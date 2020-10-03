@@ -17,36 +17,22 @@ const sessCfgFile = path.join(cfgFolder,'session');
 
 // plugins
 const { lookpath } = require('lookpath');
-const yargs = require('yargs');
 const shlp = require('sei-helper');
 const got = require('got');
 const yaml = require('yaml');
 const chio = require('cheerio');
-const xhtml2js = shlp.xhtml2js;
+const xhtml2js = shlp.xhtml2js; // todo: use cheerio directly
 
 // m3u8 and subs
 const m3u8 = require('m3u8-parsed');
 const streamdl = require('hls-download');
 const modulesFolder = __dirname + '/modules';
 const fontsData = require(modulesFolder+'/module.fontsData');
+const cookieFile = require(modulesFolder+'/module.cookieFile');
 const crunchySubs = require(modulesFolder+'/module.crunchySubs');
 const langsData = require(modulesFolder+'/module.langsData');
-
-// get cfg file
-function getYamlCfg(file, isSess){
-    const ymlFile = fs.existsSync(`${file}.user.yml`) && !isSess
-        ? `${file}.user.yml` : `${file}.yml`;
-    if(fs.existsSync(ymlFile)){
-        try{
-            const cfgData = yaml.parse(fs.readFileSync(ymlFile, 'utf8'));
-            return cfgData;
-        }
-        catch(e){
-            return {};
-        }
-    }
-    return {};
-}
+const getYamlCfg = require(modulesFolder+'/module.cfg-loader');
+const appYargs = require(modulesFolder+'/module.app-args');
 
 // params
 const cfg = {
@@ -59,263 +45,7 @@ const cfg = {
 let session = getYamlCfg(sessCfgFile, true);
 
 // args
-let argv = yargs.parserConfiguration({
-        "duplicate-arguments-array": false,
-    })
-    // main
-    .wrap(Math.min(120))
-    // .wrap(yargs.terminalWidth())
-    .usage('Usage: $0 [options]')
-    .help(false).version(false)
-    // auth
-    .option('auth', {
-        group: 'Authentication:',
-        describe: 'Enter authentication mode',
-        type: 'boolean'
-    })
-    .option('user', {
-        implies: ['auth', 'pass'],
-        group: 'Authentication:',
-        describe: 'Username used for un-interactive authentication (Used with --auth)',
-        type: 'string'
-    })
-    .option('pass', {
-        implies: ['auth', 'user'],
-        group: 'Authentication:',
-        describe: 'Password used for un-interactive authentication (Used with --auth)',
-        type: 'string'
-    })
-    // fonts
-    .option('dlfonts', {
-        group: 'Fonts:',
-        describe: 'Download all required fonts for mkv muxing',
-        type: 'boolean'
-    })
-    // search
-    .option('search', {
-        alias: 'f',
-        group: 'Search:',
-        describe: 'Search show ids',
-        type: 'string'
-    })
-    .option('search2', {
-        alias: 'g',
-        group: 'Search:',
-        describe: 'Search show ids (multi-language, experimental)',
-        type: 'string'
-    })
-    // select show and eps
-    .option('s', {
-        group: 'Downloading:',
-        describe: 'Sets the show id',
-        type: 'number'
-    })
-    .option('e', {
-        group: 'Downloading:',
-        describe: 'Select episode ids (comma-separated, hyphen-sequence)',
-        type: 'string'
-    })
-    // quality
-    .option('q', {
-        group: 'Downloading:',
-        describe: 'Set video quality',
-        choices: ['240p','360p','480p','720p','1080p','max'],
-        default: cfg.cli.videoQuality || '720p',
-        type: 'string'
-    })
-    // set dub
-    .option('dub', {
-        group: 'Muxing:',
-        describe: 'Set audio language by language code (sometimes not detect correctly)',
-        choices: langsData.isoLangs,
-        default: cfg.cli.dubLanguage || langsData.isoLangs.slice(0, -1),
-        type: 'string'
-    })
-    // server
-    .option('kstream', {
-        group: 'Downloading:',
-        describe: 'Select specific stream',
-        choices: [1, 2, 3, 4, 5],
-        default: cfg.cli.kStream || 1,
-        type: 'number'
-    })
-    .option('x', {
-        alias: 'server',
-        group: 'Downloading:',
-        describe: 'Select server',
-        choices: [1, 2, 3, 4],
-        default: cfg.cli.nServer || 1,
-        type: 'number'
-    })
-    .option('tsparts', {
-        group: 'Downloading:',
-        describe: 'Download ts parts in batch',
-        choices: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30],
-        default: cfg.cli.tsparts || 10,
-        type: 'number'
-    })
-    // old api
-    .option('oldstreams', {
-        group: 'Downloading:',
-        describe: 'Use old api for fetching stream',
-        default: cfg.cli.oldStreams || false,
-        type: 'boolean'
-    })
-    .option('oldsubs', {
-        group: 'Downloading:',
-        describe: 'Use old api for fetching subtitles [NOT WORKING!]',
-        default: cfg.cli.oldSubs || false,
-        type: 'boolean'
-    })
-    // hsubs
-    .option('hslang', {
-        group: 'Downloading:',
-        describe: 'Download video with specific hardsubs',
-        choices: langsData.subsLangsFilter.slice(1, -1),
-        default: cfg.cli.hsLang || 'none',
-        type: 'string'
-    })
-    // dl subs
-    .option('dlsubs', {
-        group: 'Downloading:',
-        describe: 'Download subtitles by language tag',
-        choices: langsData.subsLangsFilter.slice(0, -1),
-        default: cfg.cli.dlSubs || 'all',
-        type: 'string'
-    })
-    // default subtitle language
-    .option('defsublang', {
-        group: 'Muxing:',
-        describe: 'Set default subtitle by language',
-        choices: langsData.subsLangsFilter.slice(1, -1),
-        default: cfg.cli.defSubLang || langsData.subsLangsFilter.slice(1, 2)[0],
-        type: 'string'
-    })
-    // skip
-    .option('skipdl', {
-        group: 'Downloading:',
-        alias: 'novids',
-        describe: 'Skip downloading video (for downloading subtitles only)',
-        type: 'boolean'
-    })
-    .option('skipmux', {
-        group: 'Muxing:',
-        describe: 'Skip muxing video and subtitles',
-        type: 'boolean'
-    })
-    // proxy
-    .option('proxy', {
-        group: 'Proxy:',
-        describe: 'Set http(s)/socks proxy WHATWG url',
-        default: cfg.cli.proxy || false,
-        hidden: true,
-    })
-    .option('proxy-auth', {
-        group: 'Proxy:',
-        describe: 'Colon-separated username and password for proxy',
-        default: cfg.cli.proxy_auth || false,
-        hidden: true,
-    })
-    .option('ssp', {
-        group: 'Proxy:',
-        describe: 'Don\'t use proxy for stream and subtitles downloading',
-        default: cfg.cli.proxy_ssp || false,
-        hidden: true,
-        type: 'boolean'
-    })
-    // muxing
-    .option('mp4', {
-        group: 'Muxing:',
-        describe: 'Mux into mp4',
-        default: cfg.cli.mp4mux || false,
-        type: 'boolean'
-    })
-    .option('noaudsync', {
-        group: 'Muxing:',
-        describe: 'Don\'t sync audio',
-        default: cfg.cli.noaudsync || false,
-        hidden: true,
-        type: 'boolean'
-    })
-    .option('mks', {
-        group: 'Muxing:',
-        describe: 'Add subtitles to mkv/mp4 (if available)',
-        default: cfg.cli.muxSubs || false,
-        type: 'boolean'
-    })
-    // set title
-    .option('filename', {
-        group: 'Filename Template:',
-        describe: 'Template',
-        default: cfg.cli.filenameTemplate || '[{rel_group}] {title} - {ep_num} [{suffix}]',
-        type: 'string'
-    })
-    .option('a', {
-        alias: 'grouptag',
-        group: 'Filename Template:',
-        describe: 'Release group',
-        default: cfg.cli.releaseGroup || 'CR',
-        type: 'string'
-    })
-    .option('t', {
-        alias: 'title',
-        group: 'Filename Template:',
-        describe: 'Series title override',
-        type: 'string'
-    })
-    .option('ep', {
-        group: 'Filename Template:',
-        describe: 'Episode number override (ignored in batch mode)',
-        type: 'string'
-    })
-    .option('el', {
-        group: 'Filename Template:',
-        describe: 'Episode number length',
-        choices: [1, 2, 3, 4],
-        default: cfg.cli.epNumLength || 2,
-        type: 'number'
-    })
-    .option('suffix', {
-        group: 'Filename Template:',
-        describe: 'Filename suffix override (first "SIZEp" will be replaced with actual video size)',
-        default: cfg.cli.fileSuffix || 'SIZEp',
-        type: 'string'
-    })
-    // util
-    .option('folder', {
-        group: 'Utilities:',
-        describe: 'After muxing move file to created "series title" folder',
-        default: cfg.cli.useFolder || false,
-        type: 'boolean'
-    })
-    .option('nocleanup', {
-        group: 'Utilities:',
-        describe: 'Move temporary files to trash folder instead of deleting',
-        default: cfg.cli.noCleanUp || false,
-        type: 'boolean'
-    })
-    .option('notrashfolder', {
-        group: 'Utilities:',
-        describe: 'Don\'t move temporary files to trash folder (Used with --nocleanup)',
-        default: cfg.cli.noTrashFolder || false,
-        type: 'boolean'
-    })
-    // help
-    .option('help', {
-        alias: 'h',
-        group: 'Help:',
-        describe: 'Show this help',
-        type: 'boolean'
-    })
-    // usage
-    .example([
-        ['$0 --search "Naruto"', 'search "Naruto" in title'],
-        ['$0 -s 124389 -e 1,2,3', 'download episodes 1-3 from show with id 124389'],
-        ['$0 -s 124389 -e 1-3,2-7,s1-2', 'download episodes 1-3 from show with id 124389'],
-        ['$0 -s 124389 -e m132223', 'download media_id 132223 from show with id 124389']
-    ])
-    // --
-    .argv;
+const argv = appYargs.appArgv(cfg.cli, langsData);
 
 // fn variables
 let audDubT  = '',
@@ -323,6 +53,7 @@ let audDubT  = '',
     audDubP  = '',
     fnTitle  = '',
     fnEpNum  = '',
+    fnEpTitl = '';
     fnSuffix = '',
     fnOutput = '',
     isBatch  = false,
@@ -353,7 +84,7 @@ const api = {
 
 // set usable cookies
 const usefulCookies = {
-    auth: [ 
+    auth: [
         'etp_rt',
         'c_visitor',
     ],
@@ -380,7 +111,7 @@ const usefulCookies = {
         await getShowById();
     }
     else{
-        yargs.showHelp();
+        appYargs.showHelp();
     }
 })();
 
@@ -859,7 +590,8 @@ async function getMedia(mMeta){
     
     fnTitle = argv.t ? argv.t : mMeta.t;
     fnEpNum = !isBatch && argv.ep ? argv.ep : epNum;
-    fnSuffix = argv.suffix.replace('SIZEp',argv.q);
+    fnEpTitl = mMeta.te;
+    fnSuffix = argv.suffix.replace('SIZEp', argv.q);
     fnOutput = fnOutputGen();
     
     let streams    = mediaData ? mediaData.streams : [],
@@ -1133,13 +865,13 @@ async function getMedia(mMeta){
     // oldsubs warning
     if(getOldSubs){
         console.log('[WARN] oldsubs cli option is broken, see issue #2 at github');
-        // argv.oldsubs = false;
+        getOldSubs = false;
     }
     
     // fix max quality for non streams
     if(argv.q == 'max'){
         argv.q = '1080p';
-        fnSuffix = argv.suffix.replace('SIZEp',argv.q);
+        fnSuffix = argv.suffix.replace('SIZEp', argv.q);
         fnOutput = fnOutputGen();
     }
     
@@ -1149,101 +881,6 @@ async function getMedia(mMeta){
         console.log('[INFO] Downloading subtitles...');
         if(!getOldSubs && mediaData.subtitles.length < 1){
             console.log('[WARN] Can\'t find urls for subtitles!');
-        }
-        if(getOldSubs){
-            let mediaIdSubs = mMeta.m;
-            console.log('[INFO] Trying get subtitles in old format...');
-            if(hlsStream == '' && !argv.oldstreams){
-                let reqParams = new URLSearchParams({
-                    req:          'RpcApiVideoPlayer_GetStandardConfig',
-                    media_id:      mMeta.m,
-                    video_format:  106,
-                    video_quality: 61,
-                    aff:           'crunchyroll-website',
-                    current_page:  domain
-                });
-                let streamData = await getData(`${domain}/xml/?${reqParams.toString()}`,{useProxy:true});
-                if(!streamData.ok){
-                    console.log(streamData);
-                    mediaIdSubs = 0;
-                }
-                else{
-                    mediaIdSubs = streamData.res.body.match(/<media_id>(\d+)<\/media_id>/);
-                    mediaIdSubs = mediaIdSubs[1];
-                }
-            }
-            mediaIdSubs = parseInt(mediaIdSubs);
-            if(mediaIdSubs > 0){
-                let subsListApi = await getData(`${api.subs_list}${mediaIdSubs}`);
-                if(subsListApi.ok){
-                    // parse list
-                    let subsListXml = xhtml2js({
-                        src: subsListApi.res.body,
-                        el: 'subtitles',
-                        isXml: true,
-                        parse: true,
-                    }).data.children;
-                    // subsDecrypt
-                    let oldSubsData = [];
-                    for(let s of subsListXml){
-                        if(s.tagName == 'subtitle'){
-                            let subsId = s.attribs.id;
-                            let subsPreTitle = s.attribs.title;
-                            let subsXmlApi = await getData(`${api.subs_file}${subsId}`, {useProxy: argv.ssp});
-                            if(subsXmlApi.ok){
-                                let subXml      = crunchySubs.decrypt(null, subsXmlApi.res.body);
-                                if(subXml.ok){
-                                    let sxData = {};
-                                    let sx = crunchySubs.parse(s.attribs, subXml.data);
-                                    sxData.cl = langsData.langCodes[sx.language];
-                                    sxData.langExtCode = sx.language;
-                                    if(argv.dlsubs.includes('all') || argv.dlsubs.includes(sx.language)){
-                                        console.log(`[INFO] Subtitle downloaded: #${subsId} ${subsPreTitle}`);
-                                        sxData.src = sx.src;
-                                        oldSubsData.push(sxData);
-                                    }
-                                    else{
-                                        console.log(`[INFO] Subtitle download skipped: #${subsId} ${subsPreTitle}`);
-                                    }
-                                }
-                                else{
-                                    console.log(`[WARN] Failed decode subtitle: #${subsId} ${subsPreTitle}`);
-                                    console.log(subXml.data);
-                                }
-                            }
-                            else{
-                                console.log(`[WARN] Failed to download subtitle: #${subsId} ${subsPreTitle}`);
-                            }
-                        }
-                    }
-                    if(oldSubsData.length > 0){
-                        let oldSubsData = langsData.sortSubtitles(oldSubsData);
-                        for(let si in oldSubsData){
-                            let s = oldSubsData[si];
-                            let sxData = {};
-                            sxData.file = langsData.subsFile(fnOutput, si, s.cl);
-                            sxData.langExtCode = s.langExtCode;
-                            sxData.langCode = s.cl.code;
-                            sxData.langStr = s.cl.local;
-                            let sBody = '\ufeff' + s.src;
-                            sxData.title = s.title;
-                            sxData.fonts = fontsData.assFonts(sBody);
-                            fs.writeFileSync(path.join(cfg.dir.content, sxData.file), sBody);
-                            console.log(`[INFO] Subtitle saved: ${sxData.file}`);
-                            sxList.push(sxData);
-                        }
-                    }
-                    if(sxList.length < 1){
-                        console.log('[WARN] Subs not found!');
-                    }
-                }
-                else{
-                    console.log('[WARN] Failed to get subtitles list using old api!');
-                }
-            }
-            else{
-                console.log('[ERROR] Can\'t get video id for subtitles list!');
-            }
         }
         else if(mediaData.subtitles.length > 0){
             mediaData.subtitles = langsData.sortSubtitles(mediaData.subtitles);
@@ -1499,6 +1136,7 @@ function fnOutputGen(){
         .replace('{rel_group}', argv.a)
         .replace('{title}', fnTitle)
         .replace('{ep_num}', fnEpNum)
+        .replace('{ep_titl}', fnEpTitl)
         .replace('{suffix}', fnSuffix);
     return shlp.cleanupFilename(fnPrepOutput);
 }
@@ -1539,6 +1177,18 @@ async function getData(durl, params){
             console.log(`[WARN] Not valid proxy URL${e.input?' ('+e.input+')':''}!`);
             console.log('[WARN] Skiping...\n');
             argv.proxy = false;
+        }
+    }
+    // check if cookie.txt exists
+    if(fs.existsSync(path.join(cfgFolder,'cookies.txt'))){
+        try{
+            const cookieTxtPath = path.join(cfgFolder, 'cookies.txt');
+            const netcookie = fs.readFileSync(cookieTxtPath, 'utf8');
+            fs.unlinkSync(cookieTxtPath);
+            setNewCookie('', true, netcookie);
+        }
+        catch(e){
+            console.log('[ERROR] Cannot load cookie.txt file!');
         }
     }
     // if auth
@@ -1593,7 +1243,7 @@ async function getData(durl, params){
             res = await got(durl.toString(), options);
         }
         if(!params.skipCookies && res.headers['set-cookie']){
-            setNewCookie(res.headers['set-cookie']);
+            setNewCookie(res.headers['set-cookie'], false);
             for(let uCookie of usefulCookies.sess){
                 if(session[uCookie] && argv.nosess){
                     argv.nosess = false;
@@ -1625,11 +1275,19 @@ async function getData(durl, params){
         };
     }
 }
-function setNewCookie(setCookie, isAuth){
-    let cookieUpdated = [];
-    setCookie = shlp.cookie.parse(setCookie);
+function setNewCookie(setCookie, isAuth, fileData){
+    let cookieUpdated = [], lastExp = 0;
+    setCookie = fileData ? cookieFile(fileData) : shlp.cookie.parse(setCookie);
     for(let uCookie of usefulCookies.auth){
-        if(isAuth || setCookie[uCookie]){
+        const cookieForceExp = 60*60*24*7;
+        const cookieExpCur = session[uCookie] ? session[uCookie] : { expires: 0 };
+        const cookieExp = new Date(cookieExpCur.expires).getTime() - cookieForceExp;
+        if(cookieExp > lastExp){
+            lastExp = cookieExp;
+        }
+    }
+    for(let uCookie of usefulCookies.auth){
+        if(isAuth || setCookie[uCookie] && Date.now() > lastExp){
             session[uCookie] = setCookie[uCookie];
             cookieUpdated.push(uCookie);
         }
