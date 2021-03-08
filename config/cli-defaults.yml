@@ -1,4 +1,4 @@
-filenameTemplate: "[{rel_group}] {title} - {ep_num} [Multi-Subs] [{suffix}]"
+filenameTemplate: "[{rel_group}] {title} - {ep_num} [{suffix}]"
 releaseGroup: ok
 epNumLength: 2
 fileSuffix: SIZEp
@@ -7,11 +7,16 @@ dubLanguage: jpn
 mp4mux: false
 muxSubs: true
 noCleanUp: false
-nServer: 1
 kStream: 1
+nServer: 1
+tsparts: 10
+oldStreams: false
 oldSubs: false
-dlSubs: all
-defsublang: frFR
+hsLang: none
+dlSubs: frFR
+useBCPtags: false
+defSubLang: none
+useFolder: false
 proxy: false
 proxy_auth: false
 proxy_ssp: false
