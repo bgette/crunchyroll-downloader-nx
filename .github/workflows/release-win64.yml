@@ -26,12 +26,12 @@ jobs:
       - name: Get name from package.json
         run: |
           test -n "$(node -p -e "require('./package.json').name")" &&
-          echo "::set-env name=PACKAGE_NAME::$(node -p -e "require('./package.json').name")" || exit 1
+          echo PACKAGE_NAME=$(node -p -e "require('./package.json').name") >> $GITHUB_ENV || exit 1
 
       - name: Get version from package.json
         run: |
           test -n "$(node -p -e "require('./package.json').version")" &&
-          echo "::set-env name=PACKAGE_VERSION::$(node -p -e "require('./package.json').version")" || exit 1
+          echo PACKAGE_VERSION=$(node -p -e "require('./package.json').version") >> $GITHUB_ENV || exit 1
 
       - name: Upload release
         uses: actions/upload-release-asset@v1
