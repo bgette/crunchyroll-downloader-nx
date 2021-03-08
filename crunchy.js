@@ -1,19 +1,12 @@
 #!/usr/bin/env node
 
 // build-in
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 
 // package program
 const packageJson = require('./package.json');
 console.log(`\n=== Crunchyroll Downloader NX ${packageJson.version} ===\n`);
-
-// new-cfg
-const cfgFolder = __dirname + '/config';
-const binCfgFile = path.join(cfgFolder,'bin-path');
-const dirCfgFile = path.join(cfgFolder,'dir-path');
-const cliCfgFile = path.join(cfgFolder,'cli-defaults');
-const sessCfgFile = path.join(cfgFolder,'session');
 
 // plugins
 const { lookpath } = require('lookpath');
@@ -22,17 +15,24 @@ const got = require('got');
 const yaml = require('yaml');
 const chio = require('cheerio');
 const xhtml2js = shlp.xhtml2js; // todo: use cheerio directly
-
-// m3u8 and subs
 const m3u8 = require('m3u8-parsed');
 const streamdl = require('hls-download');
+
+// custom modules
 const modulesFolder = __dirname + '/modules';
 const fontsData = require(modulesFolder+'/module.fontsData');
 const cookieFile = require(modulesFolder+'/module.cookieFile');
-const crunchySubs = require(modulesFolder+'/module.crunchySubs');
+// const crunchySubs = require(modulesFolder+'/module.crunchySubs');
 const langsData = require(modulesFolder+'/module.langsData');
 const getYamlCfg = require(modulesFolder+'/module.cfg-loader');
 const appYargs = require(modulesFolder+'/module.app-args');
+
+// new-cfg
+const cfgFolder = __dirname + '/config';
+const binCfgFile = path.join(cfgFolder,'bin-path');
+const dirCfgFile = path.join(cfgFolder,'dir-path');
+const cliCfgFile = path.join(cfgFolder,'cli-defaults');
+const sessCfgFile = path.join(cfgFolder,'session');
 
 // params
 const cfg = {
@@ -53,7 +53,7 @@ let audDubT  = '',
     audDubP  = '',
     fnTitle  = '',
     fnEpNum  = '',
-    fnEpTitl = '';
+    fnEpTitl = '',
     fnSuffix = '',
     fnOutput = '',
     isBatch  = false,
@@ -356,7 +356,7 @@ async function getShowById(){
     // st num length
     const epNumLen = { E: 4, S: 3, M: 6 };
     // create list
-    epsList.each((idx)=>{
+    epsList.each((idx) => {
         // set index
         idx = isSimul ? vdsCount - idx - 1 : idx;
         // add eps nums
@@ -377,7 +377,7 @@ async function getShowById(){
         }
         // add media-episode relation
         let mediaId = epsList.eq(idx).find('crunchyroll\\:mediaId').text();
-        let mediaIdPad = mediaId.padStart(epNumLen['M'],'0');
+        let mediaIdPad = mediaId.padStart(epNumLen['M'], '0');
         let epType = epNum.match('S') ? 'specials' : 'episodes';
         titleEpsList.media[mediaIdPad] = `${epType}:${titleEpsList[epType].length-1}`;
         // episode info
@@ -385,13 +385,15 @@ async function getShowById(){
         let epTitle = videoTitleData.episode;
         let airDate = new Date(epsList.eq(idx).find('crunchyroll\\:premiumPubDate').text());
         let airFree = new Date(epsList.eq(idx).find('crunchyroll\\:freePubDate').text());
+        let endDate = new Date(epsList.eq(idx).find('crunchyroll\\:endPubDate').text());
         let subsArr = epsList.eq(idx).find('crunchyroll\\:subtitleLanguages').text();
         // add data
         titleEpsList.meta[mediaIdPad] = {
-            m:  mediaId,
-            t:  ssTitle,
-            e:  epNumStr,
-            te: epTitle,
+            m:   mediaId,
+            t:   ssTitle,
+            e:   epNumStr,
+            te:  epTitle,
+            epd: false,
         };
         // print info
         let listEpTitle = '';
@@ -406,8 +408,16 @@ async function getShowById(){
             + ( dateNow < airDate ? ` (in ${shlp.formatTime((airDate-dateNow)/1000)})` : '');
         let dateStrFree = shlp.dateString(airFree)
             + ( dateNow < airFree ? ` (in ${shlp.formatTime((airFree-dateNow)/1000)})` : '');
-        console.log(`   - PremPubDate: ${dateStrPrem}`);
+        if(dateStrFree.match(/in/)){
+            console.log(`   - PremPubDate: ${dateStrPrem}`);
+        }
         console.log(`   - FreePubDate: ${dateStrFree}`);
+        if(endDate < 5000000000000){
+            console.log(`   - EndPubDate:  ${shlp.dateString(endDate)}`);
+        }
+        if(endDate < dateNow){
+            titleEpsList.meta[mediaIdPad].epd = true;
+        }
         // subtitles
         if(subsArr){
             console.log(`   - Subtitles: ${langsData.parseRssSubsString(subsArr)}`);
@@ -429,7 +439,7 @@ async function getShowById(){
     const epRegex = new RegExp (epRexVr);
     
     // const filter wrong numbers
-    inputEps = inputEps.map((e)=>{
+    inputEps = inputEps.map((e) => {
         // conver to uppercase
         e = e.toUpperCase();
         // if range
@@ -457,50 +467,63 @@ async function getShowById(){
         }
         return '';
     });
+    
     // remove empty and duplicates
     inputEps = [...new Set(inputEps.concat(inputEpsRange))];
     const mediaList = Object.keys(titleEpsList.media).sort();
+    console.log();
+    
     // select episodes
-    inputEps.map((e)=>{
+    inputEps.map((e) => {
         if(e.match(/M/)){
             e = e.replace(/M/,'').padStart(epNumLen['M'],'0');
             if(selData.media.indexOf(e) > -1) return '';
             let idx = mediaList.indexOf(e);
-            if(idx > -1 && selData.media.indexOf(e) < 0 ){
+            if(idx > -1 && selData.media.indexOf(e) < 0 && !titleEpsList.meta[e].epd){
                 let epArr = titleEpsList.media[e].split(':');
                 selData.eps.push(titleEpsList[epArr[0]][epArr[1]]);
                 selData.media.push(e);
+            }
+            if(titleEpsList.meta[e].epd){
+                let mMeta = titleEpsList.meta[e];
+                console.log(`[INFO] Skipped due EndPubDate: [${mMeta.m}] ${mMeta.t} - ${mMeta.e} - ${mMeta.te}`);
             }
         }
         else{
             if(e == '') return '';
             let eLetter = e.match(/S/) ? 'S' : 'E';
-            e = (eLetter == 'S' ? 'S' : '') + e.replace(/E|S/,'').padStart(epNumLen[eLetter],'0');
+            e = (eLetter == 'S' ? 'S' : '') + e.replace(/E|S/, '').padStart(epNumLen[eLetter], '0');
             if(selData.eps.indexOf(e) > -1) return '';
             let seqArr = eLetter == 'S' ? 'specials' : 'episodes';
             let seqIdx = titleEpsList[seqArr].indexOf(e);
             if(seqIdx > -1){
                 let idx = Object.values(titleEpsList.media).indexOf(`${seqArr}:${seqIdx}`);
                 let msq = mediaList[idx];
-                if(selData.media.indexOf(msq) < 0){
+                if(selData.media.indexOf(msq) < 0 && !titleEpsList.meta[msq].epd){
                     selData.media.push(msq);
                     selData.eps.push(e);
+                }
+                if(titleEpsList.meta[msq].epd){
+                    let mMeta = titleEpsList.meta[msq];
+                    console.log(`[INFO] Skipped due EndPubDate: [${mMeta.m}] ${mMeta.t} - ${mMeta.e} - ${mMeta.te}`);
                 }
             }
         }
     });
+    
     // display
-    if(selData.eps.length<1){
-        console.log('\n[INFO] Episodes not selected!\n');
+    if(selData.eps.length < 1){
+        console.log('[INFO] Episodes not selected!\n');
         return;
     }
     selData.eps.sort();
-    console.log('\n[INFO] Selected Episodes:',selData.eps.join(', ')+'\n');
+    console.log('[INFO] Selected Episodes:', selData.eps.join(', ')+'\n');
     const selMedia = selData.media;
+    
     // start selecting from list
     if(selMedia.length > 0){
-        for(let sm=0;sm<selMedia.length;sm++){
-            await getMedia(titleEpsList.meta[selMedia[sm]]);
+        for(let sm of selMedia){
+            await getMedia(titleEpsList.meta[sm]);
         }
     }
 }
@@ -509,8 +532,9 @@ async function getMedia(mMeta){
     
     console.log(`Requesting: [${mMeta.m}] ${mMeta.t} - ${mMeta.e} - ${mMeta.te}`);
     
-    const mediaPage = await getData(`${api.media_page}${mMeta.m}`,{useProxy:true});
+    const mediaPage = await getData(`${api.media_page}${mMeta.m}`, {useProxy:true});
     if(!mediaPage.ok){
+        // console.log(mediaPage);
         console.log('[ERROR] Failed to get video page!');
         return;
     }
@@ -559,16 +583,13 @@ async function getMedia(mMeta){
     // --
     
     let mediaData = mediaPage.res.body.match(/vilos.config.media = \{(.*)\};/);
-    if(!mediaData && !argv.oldsubs && !isAvailVideo){
+    if(!mediaData && !isAvailVideo){
         console.log('[ERROR] VIDEO NOT AVAILABLE FOR YOUR REGION!');
         return;
     }
-    else if(!mediaData && !argv.oldsubs){
+    else if(!mediaData){
         console.log('[ERROR] CAN\'T DETECT VIDEO INFO / PREMIUM LOCKED FOR YOUR REGION?');
         return;
-    }
-    else if(!mediaData){
-        // Need for getting oldsubs for premium locked
     }
     else{
         mediaData = mediaData[1];
@@ -597,8 +618,7 @@ async function getMedia(mMeta){
     let streams    = mediaData ? mediaData.streams : [],
         streamKey  = '';
     let isClip     = false,
-        hlsStream  = '',
-        getOldSubs = false;
+        hlsStream  = '';
     
     if(argv.oldstreams){
         let videoSrcStr = mediaPage.res.body.match(/<link rel="video_src" href="(.*)" \/>/);
@@ -753,7 +773,7 @@ async function getMedia(mMeta){
                     plStreams[plServer] = {};
                 }
                 
-                if(plStreams[plServer][plResText] && plStreams[plServer][plResText] != plUrlDl && typeof plStreams[plServer][plResText] != "undefined"){
+                if(plStreams[plServer][plResText] && plStreams[plServer][plResText] != plUrlDl && typeof plStreams[plServer][plResText] != 'undefined'){
                     console.log(`[WARN] Non duplicate url for ${plServer} detected, please report to developer!`);
                 }
                 else{
@@ -859,15 +879,6 @@ async function getMedia(mMeta){
         }
     }
     
-    // get old subs
-    getOldSubs = argv.oldsubs;
-    
-    // oldsubs warning
-    if(getOldSubs){
-        console.log('[WARN] oldsubs cli option is broken, see issue #2 at github');
-        getOldSubs = false;
-    }
-    
     // fix max quality for non streams
     if(argv.q == 'max'){
         argv.q = '1080p';
@@ -879,7 +890,7 @@ async function getMedia(mMeta){
     sxList = [];
     if(!argv.skipsubs && argv.dlsubs != 'none'){
         console.log('[INFO] Downloading subtitles...');
-        if(!getOldSubs && mediaData.subtitles.length < 1){
+        if(mediaData.subtitles.length < 1){
             console.log('[WARN] Can\'t find urls for subtitles!');
         }
         else if(mediaData.subtitles.length > 0){
@@ -891,6 +902,8 @@ async function getMedia(mMeta){
                 sxData.file = langsData.subsFile(fnOutput, si, cl);
                 sxData.langExtCode = s.language;
                 sxData.langCode = cl.code;
+                sxData.langTag = cl.tag;
+                sxData.langName = cl.name;
                 sxData.langStr = cl.local;
                 if(argv.dlsubs.includes('all') || argv.dlsubs.includes(s.language)){
                     let subsAssApi = await getData(s.url, {useProxy:  argv.ssp});
@@ -999,9 +1012,11 @@ async function muxStreams(){
         // subtitles
         if(addSubs){
             for(let t of sxList){
+                let langArg = argv.bcp ? t.langTag : t.langCode;
                 let subsFile = path.join(cfg.dir.content, t.file);
-                mkvmux.push('--track-name',`0:${t.langStr} / ${t.title}`);
-                mkvmux.push('--language',`0:${t.langCode}`);
+                let trackName = t.title == t.langName ? t.langStr : `${t.langStr} / ${t.title}`;
+                mkvmux.push('--track-name', `0:${trackName}`);
+                mkvmux.push('--language',`0:${langArg}`);
                 if(setMainSubLang && t.langExtCode == argv.defsublang) {
                     console.log(`[INFO] Set default subtitle language to: ${t.langStr} / ${t.title}`);
                     mkvmux.push('--default-track','0:yes');
@@ -1037,10 +1052,11 @@ async function muxStreams(){
             let ti = 0;
             for(let t of sxList){
                 let subsFile = path.join(cfg.dir.content, t.file);
+                let trackName = t.title == t.langName ? t.langStr : `${t.langStr} / ${t.title}`;
                 ffmux.push('-i',`"${subsFile}"`);
                 ffmap.push(`-map ${ti+1}`,'-c:s',(!argv.mp4?'copy':'mov_text'));
                 ffmeta.push(`-metadata:s:s:${ti}`,`language=${t.langCode}`);
-                ffmeta.push(`-metadata:s:s:${ti}`,`title="${t.langStr} / ${t.title}"`);
+                ffmeta.push(`-metadata:s:s:${ti}`,`title="${trackName}"`);
                 ti++;
             }
         }
