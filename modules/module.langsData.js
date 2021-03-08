@@ -1,36 +1,36 @@
-// avaible langs
+// available langs
 const langCodes = {
-    'enUS': { code: 'eng', lang: 'English',    local: 'English (US)'             },
-    'enGB': { code: 'eng', lang: 'English',    local: 'English (UK)'             },
-    'esLA': { code: 'spa', lang: 'Spanish',    local: 'Spanish (Latin American)' },
-    'esES': { code: 'spa', lang: 'Spanish',                                      },
-    'frFR': { code: 'fre', lang: 'French',                                       },
-    'ptBR': { code: 'por', lang: 'Portuguese', local: 'Portuguese (Brazilian)'   },
-    'ptPT': { code: 'por', lang: 'Portuguese',                                   },
-    'arME': { code: 'ara', lang: 'Arabic',                                       }, // Arabic (Mesopotamian)?
-    'itIT': { code: 'ita', lang: 'Italian',                                      },
-    'deDE': { code: 'ger', lang: 'German',                                       },
-    'ruRU': { code: 'rus', lang: 'Russian',                                      },
-    'trTR': { code: 'tur', lang: 'Turkish',                                      },
-    'jaJP': { code: 'jpn', lang: 'Japanese',                                     },
+    'enUS': { code: 'eng', tag: 'en',     name: 'English (US)',             },
+    'esLA': { code: 'spa', tag: 'es-419', name: 'Español (América Latina)', },
+    'esES': { code: 'spa', tag: 'es',     name: 'Español (España)',         },
+    'ptBR': { code: 'por', tag: 'pt-BR',  name: 'Português (Brasil)',       },
+    'ptPT': { code: 'por', tag: 'pt',     name: 'Português (Portugal)',     },
+    'frFR': { code: 'fra', tag: 'fr',     name: 'Français (France)',        },
+    'deDE': { code: 'deu', tag: 'de',     name: 'Deutsch',                  },
+    'arME': { code: 'ara', tag: 'ar',     name: 'العربية',                  },
+    'itIT': { code: 'ita', tag: 'it',     name: 'Italiano',                 },
+    'ruRU': { code: 'rus', tag: 'ru',     name: 'Русский',                  },
+    'trTR': { code: 'tur', tag: 'tr',     name: 'Türkçe',                   },
+    'jaJP': { code: 'jpn', tag: 'ja',     name: '日本語',                   },
 };
 
-// add local
+// add en lang names and local
 (() =>{
+    const getLangName = new Intl.DisplayNames(['en'], {type: 'language'});
+    const langTable = [];
     for(let lc of Object.keys(langCodes)){
-        if(!langCodes[lc].local){
-            langCodes[lc].local = langCodes[lc].lang;
-        }
+        langCodes[lc].lang = getLangName.of(langCodes[lc].code);
+        langCodes[lc].local = getLangName.of(langCodes[lc].tag);
     }
 })();
 
-// construnct lang filter
+// construct lang filter
 const subsLangsFilter = (() => {
     const subsParam = ['all', 'none'];
     return [...subsParam, ...Object.keys(langCodes)];
 })();
 
-// construnct iso langs const
+// construct iso langs const
 const isoLangs = (() => {
     const isoDb = [];
     for(const lk of Object.keys(langCodes)){
@@ -39,7 +39,7 @@ const isoLangs = (() => {
     return [...new Set(isoDb)];
 })();
 
-// construnct dub langs const
+// construct dub langs const
 const dubLangs = (() => {
     const dubDb = {};
     for(const l of Object.keys(langCodes)){
@@ -65,7 +65,7 @@ const parseRssSubsString = (subs) => {
             return sLang;
         }
         else{
-            return 'unk';
+            return 'und';
         }
     });
     return subs.join(', ');

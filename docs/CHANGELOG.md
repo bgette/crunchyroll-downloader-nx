@@ -1,5 +1,16 @@
 ## Change Log
 
+### 4.22.0 (2021/03/08)
+- Bump Nodejs to v14
+- Added option to use IETF BCP 47/RFC 5646 language tags instead of ISO 639-2 codes for mkv subtitles muxing
+- Improved subtitles track naming
+- Skip videos with ended publication date
+- Drop support old api for subtitles
+- Small fixes and improvements
+
+#### Known issues:
+- Proxy not supported
+
 ### 4.21.0 beta (2020/10/03)
 - [Beta 1] Added ability load session from cookies.txt
 - [Beta 1] Added `episode name` to filename template

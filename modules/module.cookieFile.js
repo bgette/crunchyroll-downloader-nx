@@ -1,6 +1,6 @@
 const parse = (data) => {
     let res = {};
-    data = data.replace(/\r/g,'').split('\n')
+    data = data.replace(/\r/g,'').split('\n');
     for (let line of data) {
         let c = line.split('\t');
         if(c.length < 7){

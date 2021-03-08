@@ -14,6 +14,7 @@ oldStreams: false
 oldSubs: false
 hsLang: none
 dlSubs: all
+useBCPtags: false
 defSubLang: none
 useFolder: false
 proxy: false

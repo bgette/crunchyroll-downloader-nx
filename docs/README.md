@@ -12,7 +12,7 @@ This application is not endorsed by or affiliated with *Crunchyroll*. This appli
 
 * ffmpeg >= 4.0.0 (https://www.videohelp.com/software/ffmpeg)
 * MKVToolNix >= 20.0.0 (https://www.videohelp.com/software/MKVToolNix)
-* NodeJS >= 12.2.0 (https://nodejs.org/) (Not needed for binary version)
+* NodeJS >= 14.5.0 (https://nodejs.org/) (Not needed for binary version)
 * NPM >= 6.9.0 (https://www.npmjs.org/) (Not needed for binary version)
 
 ### Paths Configuration
