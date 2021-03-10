@@ -1,4 +1,5 @@
-const yargs = require('yargs');
+const yargs = require('yargs/yargs')(process.argv.slice(2));
+
 
 const appArgv = (cfg, langsData) => {
     return yargs.parserConfiguration({
@@ -69,7 +70,7 @@ const appArgv = (cfg, langsData) => {
             group: 'Muxing:',
             describe: 'Set audio language by language code (sometimes not detect correctly)',
             choices: langsData.isoLangs,
-            default: cfg.dubLanguage || langsData.isoLangs.slice(0, -1),
+            default: cfg.dubLanguage || langsData.isoLangs.slice(-1)[0],
             type: 'string'
         })
         // server

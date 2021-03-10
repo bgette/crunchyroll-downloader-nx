@@ -1,5 +1,9 @@
 ## Change Log
 
+### 4.22.1 (2021/03/08)
+- Fix binary build
+- Minor fixes and improvements
+
 ### 4.22.0 (2021/03/08)
 - Bump Nodejs to v14
 - Added option to use IETF BCP 47/RFC 5646 language tags instead of ISO 639-2 codes for mkv subtitles muxing

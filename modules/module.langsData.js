@@ -17,7 +17,6 @@ const langCodes = {
 // add en lang names and local
 (() =>{
     const getLangName = new Intl.DisplayNames(['en'], {type: 'language'});
-    const langTable = [];
     for(let lc of Object.keys(langCodes)){
         langCodes[lc].lang = getLangName.of(langCodes[lc].code);
         langCodes[lc].local = getLangName.of(langCodes[lc].tag);

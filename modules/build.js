@@ -4,14 +4,20 @@
 const pkg = require('../package.json');
 const fs = require('fs-extra');
 const modulesCleanup = require('removeNPMAbsolutePaths');
-const { compile } = require('nexe');
+const { exec } = require('pkg');
 
 const buildsDir = './_builds';
-const nodeVer = '';
+const curNodeVer = 'node14-';
 
 // main
-(async function(){
+(async function (){
+    doBuild();
+})();
+
+// do build
+async function doBuild(nodeVer){
     const buildStr = `${pkg.name}-${pkg.version}`;
+    nodeVer = nodeVer ? nodeVer : '';
     const acceptableBuilds = ['win64','linux64','macos64'];
     const buildType = process.argv[2];
     if(!acceptableBuilds.includes(buildType)){
@@ -28,28 +34,27 @@ const nodeVer = '';
         fs.removeSync(buildDir);
     }
     fs.mkdirSync(buildDir);
+    const buildConfig = [ 
+        './crunchy.js', 
+        '--target', nodeVer + getTarget(buildType),
+        '--output', `${buildDir}/${pkg.short_name}`,
+    ];
+    console.log(`[Build] Build configuration: ${buildFull}`);
+    try {
+        await exec(buildConfig);
+    }
+    catch(e){
+        console.log(e);
+        if(nodeVer == ''){
+            await doBuild(curNodeVer);
+        }
+        process.exit();
+    }
     fs.mkdirSync(`${buildDir}/bin`);
     fs.mkdirSync(`${buildDir}/config`);
     fs.mkdirSync(`${buildDir}/fonts`);
     fs.mkdirSync(`${buildDir}/videos`);
     fs.mkdirSync(`${buildDir}/videos/_trash`);
-    const buildConfig = {
-        loglevel: 'verbose',
-        input: './crunchy.js',
-        output: `${buildDir}/${pkg.short_name}`,
-        target: getTarget(buildType) + nodeVer,
-        resources: [
-            './modules/module.*',
-        ],
-    };
-    console.log(`[Build] Build configuration: ${buildFull}`);
-    try {
-        await compile(buildConfig);
-    }
-    catch(e){
-        console.log(e);
-        process.exit();
-    }
     fs.copySync('./config/bin-path.yml', `${buildDir}/config/bin-path.yml`);
     fs.copySync('./config/cli-defaults.yml', `${buildDir}/config/cli-defaults.yml`);
     fs.copySync('./config/dir-path.yml', `${buildDir}/config/dir-path.yml`);
@@ -61,7 +66,7 @@ const nodeVer = '';
     }
     require('child_process').execSync(`7z a -t7z "${buildsDir}/${buildFull}.7z" "${buildDir}"`,{stdio:[0,1,2]});
     console.log('[LOG] Build ready:', `${buildsDir}/${buildFull}.7z`);
-}());
+}
 
 function getTarget(bt){
     switch(bt){

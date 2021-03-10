@@ -19,20 +19,18 @@ const m3u8 = require('m3u8-parsed');
 const streamdl = require('hls-download');
 
 // custom modules
-const modulesFolder = __dirname + '/modules';
-const fontsData = require(modulesFolder+'/module.fontsData');
-const cookieFile = require(modulesFolder+'/module.cookieFile');
-// const crunchySubs = require(modulesFolder+'/module.crunchySubs');
-const langsData = require(modulesFolder+'/module.langsData');
-const getYamlCfg = require(modulesFolder+'/module.cfg-loader');
-const appYargs = require(modulesFolder+'/module.app-args');
+const fontsData     = require('./modules/module.fontsData');
+const cookieFile    = require('./modules/module.cookieFile');
+const langsData     = require('./modules/module.langsData');
+const getYamlCfg    = require('./modules/module.cfg-loader');
+const appYargs      = require('./modules/module.app-args');
 
 // new-cfg
-const cfgFolder = __dirname + '/config';
-const binCfgFile = path.join(cfgFolder,'bin-path');
-const dirCfgFile = path.join(cfgFolder,'dir-path');
-const cliCfgFile = path.join(cfgFolder,'cli-defaults');
-const sessCfgFile = path.join(cfgFolder,'session');
+const cfgFolder   = path.join(__dirname, '/config');
+const binCfgFile  = path.join(cfgFolder, 'bin-path');
+const dirCfgFile  = path.join(cfgFolder, 'dir-path');
+const cliCfgFile  = path.join(cfgFolder, 'cli-defaults');
+const sessCfgFile = path.join(cfgFolder, 'session');
 
 // params
 const cfg = {

@@ -1,7 +1,7 @@
 {
     "name": "crunchyroll-downloader-nx",
     "short_name": "crunchy",
-    "version": "4.22.0",
+    "version": "4.22.1",
     "description": "Download from Crunchyroll via cli.",
     "keywords": [
         "util",
@@ -33,7 +33,7 @@
     },
     "devDependencies": {
         "fs-extra": "^9.1.0",
-        "nexe": "^4.0.0-beta.18",
+        "pkg": "^4.4.9",
         "removeNPMAbsolutePaths": "^2.0.0"
     },
     "scripts": {
