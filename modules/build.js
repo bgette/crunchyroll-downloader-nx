@@ -35,7 +35,7 @@ async function doBuild(nodeVer){
     }
     fs.mkdirSync(buildDir);
     const buildConfig = [ 
-        './crunchy.js', 
+        pkg.main, 
         '--target', nodeVer + getTarget(buildType),
         '--output', `${buildDir}/${pkg.short_name}`,
     ];
@@ -44,7 +44,7 @@ async function doBuild(nodeVer){
         await exec(buildConfig);
     }
     catch(e){
-        console.log(e);
+        // console.log(e.message);
         if(nodeVer == ''){
             await doBuild(curNodeVer);
         }
@@ -64,7 +64,7 @@ async function doBuild(nodeVer){
     if(fs.existsSync(`${buildsDir}/${buildFull}.7z`)){
         fs.removeSync(`${buildsDir}/${buildFull}.7z`);
     }
-    require('child_process').execSync(`7z a -t7z "${buildsDir}/${buildFull}.7z" "${buildDir}"`,{stdio:[0,1,2]});
+    require('child_process').execSync(`7z a -t7z "${buildsDir}/${buildFull}.7z" "${buildDir}"`, {stdio:[0,1,2]});
     console.log('[LOG] Build ready:', `${buildsDir}/${buildFull}.7z`);
 }
 

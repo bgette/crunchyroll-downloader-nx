@@ -26,11 +26,13 @@ const getYamlCfg    = require('./modules/module.cfg-loader');
 const appYargs      = require('./modules/module.app-args');
 
 // new-cfg
-const cfgFolder   = path.join(__dirname, '/config');
+const curDirname  = process.pkg ? path.dirname(process.execPath) : __dirname;
+const cfgFolder   = path.join(curDirname, '/config');
 const binCfgFile  = path.join(cfgFolder, 'bin-path');
 const dirCfgFile  = path.join(cfgFolder, 'dir-path');
 const cliCfgFile  = path.join(cfgFolder, 'cli-defaults');
 const sessCfgFile = path.join(cfgFolder, 'session');
+const sessTxtFile = path.join(cfgFolder, 'cookies.txt');
 
 // params
 const cfg = {
@@ -1194,11 +1196,10 @@ async function getData(durl, params){
         }
     }
     // check if cookie.txt exists
-    if(fs.existsSync(path.join(cfgFolder,'cookies.txt'))){
+    if(fs.existsSync(sessTxtFile)){
         try{
-            const cookieTxtPath = path.join(cfgFolder, 'cookies.txt');
-            const netcookie = fs.readFileSync(cookieTxtPath, 'utf8');
-            fs.unlinkSync(cookieTxtPath);
+            const netcookie = fs.readFileSync(sessTxtFile, 'utf8');
+            fs.unlinkSync(sessTxtFile);
             setNewCookie('', true, netcookie);
         }
         catch(e){
