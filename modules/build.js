@@ -58,7 +58,9 @@ async function doBuild(nodeVer){
     fs.copySync('./config/bin-path.yml', `${buildDir}/config/bin-path.yml`);
     fs.copySync('./config/cli-defaults.yml', `${buildDir}/config/cli-defaults.yml`);
     fs.copySync('./config/dir-path.yml', `${buildDir}/config/dir-path.yml`);
-    fs.copySync('./modules/cmd-here.bat', `${buildDir}/cmd-here.bat`);
+    if(buildType == 'win64'){
+        fs.copySync('./modules/cmd-here.bat', `${buildDir}/cmd-here.bat`);
+    }
     fs.copySync('./docs/', `${buildDir}/docs/`);
     fs.copySync('./LICENSE.md', `${buildDir}/docs/LICENSE.md`);
     if(fs.existsSync(`${buildsDir}/${buildFull}.7z`)){
