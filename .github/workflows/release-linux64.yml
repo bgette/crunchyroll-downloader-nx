@@ -1,4 +1,4 @@
-name: Release Build Win64
+name: Release Build Linux64
 
 on:
   release:
@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Set build type
         run: |
-          echo BUILD_TYPE=win64 >> $GITHUB_ENV
+          echo BUILD_TYPE=linux64 >> $GITHUB_ENV
 
       - name: Checkout
         uses: actions/checkout@v2
