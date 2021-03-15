@@ -44,7 +44,6 @@ async function doBuild(nodeVer){
         await exec(buildConfig);
     }
     catch(e){
-        // console.log(e.message);
         if(nodeVer == ''){
             await doBuild(curNodeVer);
         }

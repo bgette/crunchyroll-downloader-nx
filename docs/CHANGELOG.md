@@ -1,5 +1,15 @@
 ## Change Log
 
+### 4.23.1 (2021/03/15)
+- Download by media_id
+- Minor fixes and improvements
+
+### 4.22.3 (2021/03/13)
+- Cross platform builds
+
+### 4.22.2 (2021/03/13)
+- Fix binary build
+
 ### 4.22.1 (2021/03/08)
 - Fix binary build
 - Minor fixes and improvements

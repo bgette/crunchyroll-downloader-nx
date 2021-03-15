@@ -264,7 +264,8 @@ const appArgv = (cfg, langsData) => {
             ['$0 --search2 "Naruto"', 'search "Naruto" in title using alternative search'],
             ['$0 -s 124389 -e 1,2,3', 'download episodes 1-3 from show with id 124389'],
             ['$0 -s 124389 -e 1-3,2-7,s1-2', 'download episodes 1-7 and "S"-episodes 1-2 from show with id 124389'],
-            ['$0 -s 124389 -e m132223', 'download media_id 132223 from show with id 124389']
+            ['$0 -s 124389 -e m132223', 'download media_id 132223 from show with id 124389'],
+            ['$0 --e m132223', 'download media_id 132223'],
         ])
         // --
         .argv;

@@ -107,10 +107,14 @@ const usefulCookies = {
     else if(argv.search2 && argv.search2.length > 2){
         await doSearch2();
     }
-    else if(argv.s && !isNaN(parseInt(argv.s,10)) && parseInt(argv.s,10) > 0){
+    else if(argv.s && !isNaN(parseInt(argv.s, 10)) && parseInt(argv.s, 10) > 0){
         await getShowById();
     }
+    else if(argv.e){
+        await getMediaById();
+    }
     else{
+        console.log(argv);
         appYargs.showHelp();
     }
 })();
@@ -313,7 +317,7 @@ async function doSearch2(){
             totalResults++;
         }
         if(notLib && !data){
-            console.log('[SERIES] #??????',href.replace(/^\//,'').replace(/-/g,' '));
+            console.log('[SERIES] #??????', href.replace(/^\//,'').replace(/-/g,' '));
             console.log('  [ERROR] Can\'t fetch seasons list, not listed in search data');
             console.log(`  [ERROR] URL: ${domain}${href}`);
             totalResults++;
@@ -528,25 +532,60 @@ async function getShowById(){
     }
 }
 
+async function getMediaById(){
+    // default
+    let e = argv.e.split(','), inpMedia = [''];
+    // map select
+    e.map((e) => {
+        if(e.match('-') && e.split('-').length == 2){
+            let eRange = e.split('-');
+            if(eRange[0].match(/^m\d{1,6}$/i) && eRange[1].match(/^\d{1,6}$/)){
+                eRange[0] = eRange[0].replace(/^m/i,'');
+                eRange[0] = parseInt(eRange[0]);
+                eRange[1] = parseInt(eRange[1]);
+                if (eRange[0] > eRange[1]) {
+                    inpMedia.push(eRange[0]);
+                }
+                else{
+                    let rangeLength = eRange[1] - eRange[0] + 1;
+                    let epsRangeArr = Array(rangeLength).fill(0).map((x, y) => x + y + eRange[0]);
+                    epsRangeArr.forEach((i)=>{
+                        let selEpStr = i.toString();
+                        inpMedia.push(selEpStr);
+                    });
+                }
+            }
+        }
+        else if(e.match(/^m\d{1,6}$/i)){
+            inpMedia.push(parseInt(e.replace(/^m/i,'')));
+        }
+    });
+    inpMedia = [...new Set(inpMedia)].splice(1);
+    if(inpMedia.length > 0){
+        console.log('[INFO] Selected media:', inpMedia.join(', '), '\n');
+        for(let mid of inpMedia){
+            await getMedia({ m: mid });
+        }
+    }
+    else{
+        console.log('[INFO] Media not selected!');
+    }
+}
+
 async function getMedia(mMeta){
     
-    console.log(`Requesting: [${mMeta.m}] ${mMeta.t} - ${mMeta.e} - ${mMeta.te}`);
+    let mediaName = mMeta.t && mMeta.e && mMeta.te ? `${mMeta.t} - ${mMeta.e} - ${mMeta.te}` : '...';
+    console.log(`Requesting: [${mMeta.m}] ${mediaName}`);
     
     const mediaPage = await getData(`${api.media_page}${mMeta.m}`, {useProxy:true});
     if(!mediaPage.ok){
-        // console.log(mediaPage);
         console.log('[ERROR] Failed to get video page!');
         return;
     }
     
-    audDubE = '';
-    if(audDubT == '' && mMeta.te.match(langsData.dubRegExp)){
-        audDubE = langsData.dubLangs[mMeta.te.match(langsData.dubRegExp)[1]];
-        console.log(`[INFO] audio language code detected, setted to ${audDubE} for this episode`);
-    }
-    
     const contextData = mediaPage.res.body.match(/({"@context":.*)(<\/script>)/);
-    const eligibleRegion = JSON.parse(contextData[1]).potentialAction
+    const contextJson = JSON.parse(contextData[1]);
+    const eligibleRegion = contextJson.potentialAction
         .actionAccessibilityRequirement.eligibleRegion;
     
     const vHtml = chio.load(mediaPage.res.body);
@@ -595,8 +634,25 @@ async function getMedia(mMeta){
         mediaData = mediaData[1];
         mediaData = JSON.parse(`{${mediaData}}`);
         if(argv.debug){
+            console.log('[DEBUG]', contextJson);
             console.log('[DEBUG]', mediaData);
         }
+    }
+    
+    if(mediaName == '...'){
+        mMeta.t = mMeta.t ? mMeta.t : contextJson.partOfSeason.name;
+        mMeta.e = mMeta.e ? mMeta.e : mediaData.metadata.episode_number;
+        mMeta.te = mMeta.te ? mMeta.te : mediaData.metadata.title;
+        mMeta.epd = false;
+        // show name
+        mediaName = `${mMeta.t} - ${mMeta.e} - ${mMeta.te}`;
+        console.log(`Requesting: [${mMeta.m}] ${mediaName}`);
+    }
+    
+    audDubE = '';
+    if(audDubT == '' && mMeta.te.match(langsData.dubRegExp)){
+        audDubE = langsData.dubLangs[mMeta.te.match(langsData.dubRegExp)[1]];
+        console.log(`[INFO] audio language code detected, setted to ${audDubE} for this episode`);
     }
     
     let epNum = mMeta.e;
@@ -626,7 +682,7 @@ async function getMedia(mMeta){
             isClip = true;
             let parseCfg    = new URL(videoSrcStr[1]).searchParams;
             let parseCfgUrl = parseCfg.get('config_url') + '&current_page=' + domain;
-            let streamData = await getData(parseCfgUrl.replace(/http:/, 'https:'), {useProxy: argv.ssp});
+            let streamData  = await getData(parseCfgUrl.replace(/http:/, 'https:'), {useProxy: argv.ssp});
             if(streamData.ok){
                 let videoDataBody = streamData.res.body.replace(/\n/g,'').replace(/ +/g,' ');
                 let xmlMediaId    = videoDataBody.match(/<media_id>(\d+)<\/media_id>/);
@@ -967,8 +1023,8 @@ async function muxStreams(){
     }
     const addSubs = argv.mks && sxList.length > 0 ? true : false;
     // ftag
-    argv.ftag = argv.ftag ? argv.ftag : argv.a;
-    argv.ftag = shlp.cleanupFilename(argv.ftag);
+    argv.ftag = typeof argv.ftag != 'undefined' ? argv.ftag : argv.a;
+    argv.ftag = shlp.cleanupFilename(argv.ftag.toString());
     // usage
     let usableMKVmerge = true;
     let usableFFmpeg = true;
@@ -1252,7 +1308,7 @@ async function getData(durl, params){
         let res;
         if(argv.curl && loc.origin == domain){
             const curlReq = require('./modules/module.curl-req');
-            res = await curlReq(durl.toString(), options, path.join(__dirname, './config/'));
+            res = await curlReq(durl.toString(), options, cfgFolder);
         }
         else{
             res = await got(durl.toString(), options);
