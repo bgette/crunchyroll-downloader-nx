@@ -77,7 +77,7 @@ const api = {
     series_page: `${domain}/series-`,
     subs_list:   `${domain}/xml/?req=RpcApiSubtitle_GetListing&media_id=`,
     subs_file:   `${domain}/xml/?req=RpcApiSubtitle_GetXml&subtitle_script_id=`,
-    auth:        `${domain}/xml/?req=RpcApiUser_Login`,
+    auth:        `${domain}/login`,
     // ${domain}/showseriesmedia?id=24631
     // ${domain}/{GROUP_URL}/videos,
 };
